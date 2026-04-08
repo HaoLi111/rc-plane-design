@@ -1,0 +1,71 @@
+{
+    "name": "Extra 330SC (3D Aerobat)",
+    "description": "High-performance 3D aerobatic pattern plane, symmetrical airfoil, high power-to-weight",
+    "citation": "Loosely based on Extra 330SC full-scale geometry scaled for RC (e.g. Extreme Flight Extra 330SC 60\" class). Dimensions approximate.",
+    "airfoil": {
+        "code": "0015",
+        "Cla": 0.11,
+        "alpha0_deg": 0.0,
+        "Cd0": 0.022,
+        "Cdi_factor": 0.035
+    },
+    "wing_main": {
+        "chord_root": 0.28,
+        "chord_tip": 0.22,
+        "span": 1.40,
+        "sweep_deg": 0.0,
+        "dihedral_deg": 0.0,
+        "foil": "0015",
+        "type_": 0,
+        "x": 0.22
+    },
+    "wing_horiz": {
+        "chord_root": 0.16,
+        "chord_tip": 0.10,
+        "span": 0.52,
+        "sweep_deg": 5.0,
+        "dihedral_deg": 0.0,
+        "foil": "0009",
+        "type_": 0,
+        "x": 0.88
+    },
+    "wing_vert": {
+        "chord_root": 0.18,
+        "chord_tip": 0.09,
+        "span": 0.22,
+        "sweep_deg": 30.0,
+        "dihedral_deg": 0.0,
+        "foil": "0009",
+        "type_": 2,
+        "x": 0.85
+    },
+    "fuselage": {
+        "length": 1.05,
+        "stations": [0.0, 0.08, 0.15, 0.45, 0.75, 1.05],
+        "radii":   [0.03, 0.05, 0.055, 0.055, 0.035, 0.00]
+    },
+    "weight": {
+        "m_payload_kg": 0.15,
+        "f_payload": 0.20,
+        "v_cruise_ms": 22.0,
+        "endurance_s": 480
+    },
+    "power": {
+        "motor_power_W": 350,
+        "motor_efficiency": 0.82,
+        "prop_efficiency": 0.60,
+        "battery_voltage": 14.8,
+        "battery_capacity_Ah": 1.8,
+        "prop_RPM": 12000
+    },
+    "constraints": {
+        "turn_v": 20.0,
+        "turn_bank_deg": 60,
+        "climb_vv": 10.0,
+        "climb_v": 18.0,
+        "cruise_v": 22.0,
+        "ceiling_h": 800.0,
+        "to_Sg": 15.0
+    },
+    "cg_x": 0.34
+}

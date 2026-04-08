@@ -1,0 +1,71 @@
+{
+    "name": "Sport Trainer 40",
+    "description": "Classic .40-size sport trainer, gentle flying characteristics",
+    "citation": "Representative .40-size trainer geometry. Dimensions based on common sport trainer designs (e.g. Sig Kadet, Great Planes PT-40 class).",
+    "airfoil": {
+        "code": "2412",
+        "Cla": 0.1,
+        "alpha0_deg": -2.0,
+        "Cd0": 0.025,
+        "Cdi_factor": 0.04
+    },
+    "wing_main": {
+        "chord_root": 0.30,
+        "chord_tip": 0.20,
+        "span": 1.50,
+        "sweep_deg": 0.0,
+        "dihedral_deg": 5.0,
+        "foil": "2412",
+        "type_": 0,
+        "x": 0.25
+    },
+    "wing_horiz": {
+        "chord_root": 0.15,
+        "chord_tip": 0.10,
+        "span": 0.50,
+        "sweep_deg": 0.0,
+        "dihedral_deg": 0.0,
+        "foil": "0009",
+        "type_": 0,
+        "x": 0.95
+    },
+    "wing_vert": {
+        "chord_root": 0.15,
+        "chord_tip": 0.08,
+        "span": 0.18,
+        "sweep_deg": 25.0,
+        "dihedral_deg": 0.0,
+        "foil": "0009",
+        "type_": 2,
+        "x": 0.92
+    },
+    "fuselage": {
+        "length": 1.10,
+        "stations": [0.0, 0.10, 0.20, 0.50, 0.80, 1.10],
+        "radii":   [0.02, 0.06, 0.07, 0.07, 0.04, 0.00]
+    },
+    "weight": {
+        "m_payload_kg": 0.20,
+        "f_payload": 0.25,
+        "v_cruise_ms": 15.0,
+        "endurance_s": 600
+    },
+    "power": {
+        "motor_power_W": 150,
+        "motor_efficiency": 0.80,
+        "prop_efficiency": 0.65,
+        "battery_voltage": 11.1,
+        "battery_capacity_Ah": 2.2,
+        "prop_RPM": 9000
+    },
+    "constraints": {
+        "turn_v": 15.0,
+        "turn_bank_deg": 45,
+        "climb_vv": 3.0,
+        "climb_v": 12.0,
+        "cruise_v": 15.0,
+        "ceiling_h": 500.0,
+        "to_Sg": 20.0
+    },
+    "cg_x": 0.37
+}

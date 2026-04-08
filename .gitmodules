@@ -1,0 +1,30 @@
+[submodule "legacy/rAviExp"]
+	path = legacy/rAviExp
+	url = https://github.com/HaoLi111/rAviExp.git
+[submodule "legacy/ModelPlanePower"]
+	path = legacy/ModelPlanePower
+	url = https://github.com/HaoLi111/ModelPlanePower.git
+[submodule "legacy/ModelAircraftDesignTuningHandbook"]
+	path = legacy/ModelAircraftDesignTuningHandbook
+	url = https://github.com/HaoLi111/ModelAircraftDesignTuningHandbook.git
+[submodule "legacy/WebrAviExpConvConcept"]
+	path = legacy/WebrAviExpConvConcept
+	url = https://github.com/HaoLi111/WebrAviExpConvConcept.git
+[submodule "legacy/eXpand"]
+	path = legacy/eXpand
+	url = https://github.com/HaoLi111/eXpand.git
+[submodule "legacy/MFVN"]
+	path = legacy/MFVN
+	url = https://github.com/HaoLi111/MFVN.git
+[submodule "legacy/Open-Model-Airplane-Training"]
+	path = legacy/Open-Model-Airplane-Training
+	url = https://github.com/HaoLi111/Open-Model-Airplane-Training.git
+[submodule "legacy/ThomasDavid0-AircraftDesign"]
+	path = legacy/ThomasDavid0-AircraftDesign
+	url = https://github.com/ThomasDavid0/AircraftDesign.git
+[submodule "legacy/MachUpX"]
+	path = legacy/MachUpX
+	url = https://github.com/usuaero/MachUpX.git
+[submodule "legacy/AirfoilDatabase"]
+	path = legacy/AirfoilDatabase
+	url = https://github.com/usuaero/AirfoilDatabase.git

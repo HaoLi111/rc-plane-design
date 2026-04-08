@@ -1,0 +1,64 @@
+{
+    "name": "Classic 2m Glider",
+    "description": "Classic 2m hand-launch glider, high AR wing, no motor",
+    "citation": "Inspired by the Goldberg Gentle Lady / Carl Goldberg Models (1980s). Dimensions typical of 2m HLG class.",
+    "airfoil": {
+        "code": "6412",
+        "Cla": 0.105,
+        "alpha0_deg": -4.0,
+        "Cd0": 0.018,
+        "Cdi_factor": 0.022
+    },
+    "wing_main": {
+        "chord_root": 0.20,
+        "chord_tip": 0.10,
+        "span": 2.00,
+        "sweep_deg": 0.0,
+        "dihedral_deg": 7.0,
+        "foil": "6412",
+        "type_": 0,
+        "x": 0.15
+    },
+    "wing_horiz": {
+        "chord_root": 0.10,
+        "chord_tip": 0.06,
+        "span": 0.38,
+        "sweep_deg": 0.0,
+        "dihedral_deg": 0.0,
+        "foil": "0009",
+        "type_": 0,
+        "x": 0.78
+    },
+    "wing_vert": {
+        "chord_root": 0.10,
+        "chord_tip": 0.05,
+        "span": 0.12,
+        "sweep_deg": 30.0,
+        "dihedral_deg": 0.0,
+        "foil": "0009",
+        "type_": 2,
+        "x": 0.76
+    },
+    "fuselage": {
+        "length": 0.90,
+        "stations": [0.0, 0.08, 0.18, 0.45, 0.70, 0.90],
+        "radii":   [0.01, 0.03, 0.035, 0.03, 0.015, 0.00]
+    },
+    "weight": {
+        "m_payload_kg": 0.0,
+        "f_payload": 0.01,
+        "v_cruise_ms": 8.0,
+        "endurance_s": 1800
+    },
+    "power": null,
+    "constraints": {
+        "turn_v": 8.0,
+        "turn_bank_deg": 30,
+        "climb_vv": 0.5,
+        "climb_v": 7.0,
+        "cruise_v": 8.0,
+        "ceiling_h": 200.0,
+        "to_Sg": 50.0
+    },
+    "cg_x": 0.26
+}
