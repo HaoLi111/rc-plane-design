@@ -26,9 +26,9 @@ Available as a **Python library** (use any module standalone) and as a **web GUI
 ![Fuselage formers](results/examples/sport_flyer_formers.png)
 
 #### What we're building toward — complete laser-cut part sheets from a single design
-> Real RC aircraft plans like this one contain dozens of interlocking ribs, formers, fuselage sides, doublers, and spar webs — all generated from the same geometry and exported to DXF for nesting and cutting. This is the end goal of the manufacturing pipeline.
+> Real RC aircraft plans contain dozens of interlocking ribs, formers, fuselage sides, doublers, and spar webs — all generated from the same geometry and exported to DXF for nesting and cutting. This is the end goal of the manufacturing pipeline.
 
-![Reference: complete laser-cut RC aircraft plan](docs/reference_laser_cut_plan.png)
+<!-- Add a reference plan image here: ![Reference laser-cut plan](docs/reference_laser_cut_plan.png) -->
 
 #### Six missions → six different aircraft, sized automatically
 ![Passive design mission comparison](results/examples/passive_comparison.png)
