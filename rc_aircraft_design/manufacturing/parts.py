@@ -33,6 +33,16 @@ class SlotRect:
 
 
 @dataclass
+class LighteningHole:
+    """Elliptical weight-saving cutout between spars in a rib."""
+
+    cx: float       # center x [mm from LE]
+    cy: float       # center y [mm]
+    rx: float       # semi-axis x [mm]
+    ry: float       # semi-axis y [mm]
+
+
+@dataclass
 class RibProfile:
     """Single wing rib: outer airfoil contour with spar slots cut out."""
 
@@ -42,6 +52,7 @@ class RibProfile:
     x: np.ndarray            # airfoil x coords [mm] (closed loop)
     y: np.ndarray            # airfoil y coords [mm] (closed loop)
     slots: list[SlotRect]    # all spar/rod/longeron slots
+    lightening_holes: list[LighteningHole] = field(default_factory=list)
     has_control_surface: bool = False
     hinge_x_mm: float = 0.0  # hinge cut position from LE [mm]
     label: str = ""
@@ -63,6 +74,45 @@ class FormerProfile:
     x: np.ndarray            # outline x coords [mm]
     y: np.ndarray            # outline y coords [mm]
     longeron_holes: list[tuple[float, float]]  # (x, y) centers for longeron cutouts
+    stringer_notches: list[tuple[float, float, float, float]] = field(default_factory=list)
+    # (x0, y0, x1, y1) rectangular notches at edge for stringers
+    tab_slots: list[tuple[float, float, float, float]] = field(default_factory=list)
+    # (x0, y0, x1, y1) tab slots for fuselage side panel interlocking
+    label: str = ""
+
+
+@dataclass
+class FuselageSidePanel:
+    """Flat fuselage side panel (left or right) with cutouts."""
+
+    side: str                # "left" or "right"
+    x: np.ndarray            # outline x coords [mm]
+    y: np.ndarray            # outline y coords [mm]
+    cutouts: list[tuple[np.ndarray, np.ndarray]]  # list of (x, y) closed-loop cutouts
+    tab_positions: list[float]  # x positions of interlocking tabs
+    label: str = ""
+
+
+@dataclass
+class Firewall:
+    """Motor mount firewall — flat plate at nose with bolt holes."""
+
+    width_mm: float
+    height_mm: float
+    thickness_mm: float
+    x: np.ndarray            # outline x coords [mm]
+    y: np.ndarray            # outline y coords [mm]
+    motor_holes: list[tuple[float, float, float]]  # (cx, cy, radius) for bolt holes
+    label: str = "FW"
+
+
+@dataclass
+class Doubler:
+    """Reinforcement doubler (root rib doubler, gusset, etc.)."""
+
+    x: np.ndarray            # outline x coords [mm]
+    y: np.ndarray            # outline y coords [mm]
+    cutouts: list[tuple[np.ndarray, np.ndarray]]  # internal cutouts
     label: str = ""
 
 
@@ -74,6 +124,9 @@ class ManufacturingParts:
     htail_ribs: list[RibProfile]
     vtail_ribs: list[RibProfile]
     fuselage_formers: list[FormerProfile]
+    fuselage_sides: list[FuselageSidePanel] = field(default_factory=list)
+    firewall: Firewall | None = None
+    doublers: list[Doubler] = field(default_factory=list)
     name: str = ""
 
 
@@ -134,6 +187,60 @@ def _spar_slot_rect(
     )
 
 
+def _compute_lightening_holes(
+    chord_mm: float,
+    foil_code: str,
+    slots: list[SlotRect],
+    build: WingBuildConfig,
+) -> list[LighteningHole]:
+    """Compute elliptical lightening holes between spar slots.
+
+    Places one ellipse in every gap between adjacent spars where
+    the gap is wide enough (>= lightening_hole_min_width_mm).
+    """
+    if not build.lightening_holes or len(slots) < 2:
+        return []
+
+    margin = build.lightening_hole_margin_mm
+    min_w = build.lightening_hole_min_width_mm
+    h_frac = build.lightening_hole_height_frac
+
+    # Get airfoil upper/lower at fine resolution for thickness queries
+    x_n, yu_n, yl_n = naca4(foil_code, n_points=200)
+
+    # Sort slots by x position
+    sorted_slots = sorted(slots, key=lambda s: s.x0)
+
+    holes: list[LighteningHole] = []
+    for i in range(len(sorted_slots) - 1):
+        left_edge = sorted_slots[i].x1 + margin
+        right_edge = sorted_slots[i + 1].x0 - margin
+        gap = right_edge - left_edge
+
+        if gap < min_w:
+            continue
+
+        cx = (left_edge + right_edge) / 2.0
+        rx = gap / 2.0 * 0.85  # 85% of available width
+
+        # Local airfoil thickness at centre of hole
+        x_frac = cx / chord_mm
+        if x_frac < 0.01 or x_frac > 0.99:
+            continue
+        yu_at = float(np.interp(x_frac, x_n, yu_n)) * chord_mm
+        yl_at = float(np.interp(x_frac, x_n, yl_n)) * chord_mm
+        thickness = yu_at - yl_at
+        cy = (yu_at + yl_at) / 2.0
+        ry = thickness * h_frac / 2.0
+
+        if ry < 2.0:  # skip degenerate holes
+            continue
+
+        holes.append(LighteningHole(cx=cx, cy=cy, rx=rx, ry=ry))
+
+    return holes
+
+
 def generate_wing_ribs(
     wing: Wing,
     build: WingBuildConfig,
@@ -161,6 +268,9 @@ def generate_wing_ribs(
             slot = _spar_slot_rect(chord, spar, foil)
             slots.append(slot)
 
+        # Lightening holes between spars
+        l_holes = _compute_lightening_holes(chord, foil, slots, build)
+
         # Control surface check
         has_cs = False
         hinge_x = 0.0
@@ -177,6 +287,7 @@ def generate_wing_ribs(
             x=x_prof,
             y=y_prof,
             slots=slots,
+            lightening_holes=l_holes,
             has_control_surface=has_cs,
             hinge_x_mm=hinge_x,
             label=f"{prefix}{i}",

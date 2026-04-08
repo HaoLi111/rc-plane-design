@@ -63,6 +63,16 @@ class WingBuildConfig:
     washout_deg: float = 0.0         # tip washout [deg]
     control_surfaces: list[ControlSurfaceConfig] = field(default_factory=list)
 
+    # ── Lightening holes ────────────────────────────────────────────
+    lightening_holes: bool = True     # cut weight-saving holes between spars
+    lightening_hole_margin_mm: float = 4.0  # min clearance from spar edges
+    lightening_hole_min_width_mm: float = 12.0  # skip holes in gaps smaller than this
+    lightening_hole_height_frac: float = 0.55   # hole height as fraction of local airfoil thickness
+
+    # ── Doublers ────────────────────────────────────────────────────
+    root_doubler: bool = True         # include root rib doubler (thicker, cross-braced)
+    tip_doubler: bool = False         # include tip rib doubler
+
 
 @dataclass
 class FuselageBuildConfig:
@@ -77,6 +87,21 @@ class FuselageBuildConfig:
     battery_hatch_length_mm: float = 80.0
     wing_saddle_former: int = 2       # former index for wing saddle
     wing_saddle_width_mm: float = 0.0  # auto-computed from wing root chord
+
+    # ── Stringer notches in formers ────────────────────────────────
+    stringer_notch_width_mm: float = 3.0   # notch width for longerons
+    stringer_notch_depth_mm: float = 3.0   # notch depth into former edge
+
+    # ── Firewall ───────────────────────────────────────────────────
+    firewall: bool = True             # generate motor-mount firewall
+    motor_mount_holes: int = 4        # number of motor mounting bolt holes
+    motor_mount_spacing_mm: float = 25.0  # bolt pattern diameter
+
+    # ── Side panels ────────────────────────────────────────────────
+    side_panels: bool = True          # generate fuselage side panels
+    side_panel_battery_cutout: bool = True   # battery access window
+    side_panel_servo_cutout: bool = True     # servo access window
+    side_panel_tab_count: int = 0     # auto-computed from n_formers
 
     # Fuselage profile: list of (x_frac, width_mm, height_mm) stations
     # If empty, auto-generated from ConventionalConcept fuselage geometry
