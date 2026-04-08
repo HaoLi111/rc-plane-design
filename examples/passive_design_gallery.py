@@ -26,7 +26,9 @@ from rc_aircraft_design.passive import run_passive_design, PassiveDesignResult
 from rc_aircraft_design.wing.geometry import planform_coords, compute_mac
 from rc_aircraft_design.aero.airfoil import naca4
 
-OUT = Path(__file__).resolve().parent.parent / "results" / "examples"
+from datetime import datetime
+RUN_ID = datetime.now().strftime("%Y%m%d_%H%M%S")
+OUT = Path(__file__).resolve().parent.parent / "results" / "examples" / RUN_ID
 OUT.mkdir(parents=True, exist_ok=True)
 
 MISSIONS_DIR = Path(__file__).resolve().parent.parent / "data" / "examples" / "missions"
@@ -204,11 +206,27 @@ def export_dxf(result: PassiveDesignResult, name: str):
 # ── Multi-mission comparison ─────────────────────────────────────────
 
 def plot_comparison(results: dict[str, PassiveDesignResult]) -> plt.Figure:
-    """Side-by-side planform silhouettes of all missions."""
+    """Side-by-side planform silhouettes of all missions (shared scale)."""
     n = len(results)
     fig, axes = plt.subplots(1, n, figsize=(5 * n, 5))
     if n == 1:
         axes = [axes]
+
+    # First pass: find global bounding box so all subplots share the same scale
+    all_x, all_y = [], []
+    for r in results.values():
+        concept = r.concept
+        for wing in (concept.wing_main, concept.wing_horiz, concept.wing_vert):
+            px, py = planform_coords(wing)
+            all_x.extend(px)
+            all_y.extend(py)
+        all_x.append(concept.fuselage_length)
+    pad = 0.05
+    x_lo, x_hi = min(all_x) - pad, max(all_x) + pad
+    y_lo, y_hi = min(all_y) - pad, max(all_y) + pad
+    # Ensure symmetric y range (planforms are symmetric about y=0)
+    y_abs = max(abs(y_lo), abs(y_hi))
+    y_lo, y_hi = -y_abs, y_abs
 
     for ax, (name, r) in zip(axes, results.items()):
         concept = r.concept
@@ -226,6 +244,8 @@ def plot_comparison(results: dict[str, PassiveDesignResult]) -> plt.Figure:
         ax.plot(r.stability.X_cg, 0, "r^", ms=8)
         ax.plot(r.stability.X_np, 0, "bv", ms=8)
 
+        ax.set_xlim(x_lo, x_hi)
+        ax.set_ylim(y_lo, y_hi)
         ax.set_aspect("equal")
         ax.set_title(f"{name}\n{r.m_gross_kg:.2f} kg, {concept.wing_main.span*100:.0f} cm span",
                       fontsize=9)

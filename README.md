@@ -206,11 +206,22 @@ uv run pytest tests/ -q
 
 ## Examples
 
-Run the smoke-test script to regenerate all plots (each run creates a timestamped subfolder):
+All runnable example scripts live in [`examples/`](examples/):
+
+| Script | Description | Key modules |
+|--------|-------------|-------------|
+| [`smoke_test_loads.py`](examples/smoke_test_loads.py) | NACA airfoils, alpha sweeps, span loads, taper comparison, V-n envelope | `aero.airfoil`, `aero.analysis`, `wing.loads` |
+| [`test_neuralfoil.py`](examples/test_neuralfoil.py) | NeuralFoil (PINN) CL/CD/CM polars for 4 NACA foils at Re=200k | `aero.airfoil`, NeuralFoil |
+| [`passive_design_from_assumptions.py`](examples/passive_design_from_assumptions.py) | Full aircraft from ~10 mission assumptions (single mission) | `passive`, `wing.geometry`, `stability`, `constraints` |
+| [`passive_design_gallery.py`](examples/passive_design_gallery.py) | Three-views, constraint diagrams, and comparison for all 6 missions | `passive`, `constraints`, `cad` |
+
+Each run creates a timestamped subfolder under `results/examples/<YYYYMMDD_HHMMSS>/`.
 
 ```bash
 python examples/smoke_test_loads.py
-# outputs to results/examples/<YYYYMMDD_HHMMSS>/
+python examples/test_neuralfoil.py
+python examples/passive_design_gallery.py
+python examples/passive_design_from_assumptions.py
 ```
 
 ### NACA 4-Digit Airfoil Profiles
