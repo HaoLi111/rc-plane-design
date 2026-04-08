@@ -14,11 +14,32 @@ Available as a **Python library** (use any module standalone) and as a **web GUI
 
 ## Web UI — no code required
 
+> **Live demo:** [rc-aircraft-design-studio.onrender.com](https://rc-aircraft-design-studio.onrender.com) *(free tier — first load may take ~30 s to wake)*
+
 The fastest way to use this project: a full interactive dashboard that runs in your browser. No Python knowledge needed — load a preset, tweak parameters, click **Run**, explore interactive charts, and export results as JSON, DXF, or HTML.
 
-```bash
-cd webui && uv sync && uv run python app.py   # → http://127.0.0.1:8050
+**Quick launch (copy-paste):**
+
+```powershell
+# Windows (PowerShell)
+cd webui; uv sync; uv run python app.py        # → http://127.0.0.1:8050
 ```
+
+```bash
+# macOS / Linux
+cd webui && uv sync && uv run python app.py    # → http://127.0.0.1:8050
+```
+
+```bash
+# Without uv (pip)
+cd webui
+python -m venv .venv && .venv/bin/pip install -e .. && .venv/bin/pip install dash dash-bootstrap-components dash-iconify plotly pandas
+.venv/bin/python app.py                        # → http://127.0.0.1:8050
+```
+
+**Deploy your own** (free): click the button below to deploy to Render, or use the included `render.yaml` blueprint.
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
 
 <!-- Screenshots: replace these comments with actual screenshots once available -->
 <!-- ![Dashboard](docs/screenshots/webui_dashboard.png) -->

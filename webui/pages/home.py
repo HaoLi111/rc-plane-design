@@ -27,17 +27,21 @@ def layout(**kwargs):
     for fname, name, desc, icon in PRESETS:
         preset_cards.append(
             dbc.Col(
-                dbc.Card(
-                    dbc.CardBody([
-                        html.Div([
-                            DashIconify(icon=icon, width=32, color="#2563eb"),
-                            html.H5(name, className="mt-2 mb-1", style={"fontWeight": "700", "fontSize": "15px"}),
-                            html.P(desc, className="text-muted", style={"fontSize": "12px", "margin": 0}),
+                html.Div(
+                    dbc.Card(
+                        dbc.CardBody([
+                            html.Div([
+                                DashIconify(icon=icon, width=32, color="#2563eb"),
+                                html.H5(name, className="mt-2 mb-1", style={"fontWeight": "700", "fontSize": "15px"}),
+                                html.P(desc, className="text-muted", style={"fontSize": "12px", "margin": 0}),
+                            ]),
                         ]),
-                    ]),
-                    className="preset-card",
+                        className="preset-card",
+                        style={"height": "100%"},
+                    ),
                     id={"type": "preset-card", "index": fname},
-                    style={"height": "100%"},
+                    n_clicks=0,
+                    style={"cursor": "pointer", "height": "100%"},
                 ),
                 md=3, sm=6, className="mb-3",
             )

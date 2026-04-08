@@ -59,79 +59,65 @@ def register_callbacks(app: dash.Dash):
         if not n_clicks:
             return no_update, no_update
 
-        try:
-            from rc_aircraft_design.passive import run_passive_design
-            from rc_aircraft_design.wing.geometry import compute_mac
-            from rc_aircraft_design.wing.loads import (
-                compute_span_loads, elliptic_Cl, trapezoid_chord,
-            )
-            from rc_aircraft_design.utils.math_helpers import density_isa, dynamic_pressure
+        data, err = _execute_pipeline(
+            payload_kg, payload_frac, cruise_v, endurance, altitude,
+            climb_rate, turn_bank, to_roll,
+            naca_code, cla, alpha0, cd0, cdi_factor,
+            ar, tr, sweep, dihedral, vh, vv, sm, fuse_ld,
+            motor_eff, prop_eff, batt_v, batt_ah,
+        )
+        if err:
+            return no_update, err
+        ok_msg = dbc.Alert(
+            [DashIconify(icon="mdi:check-circle", width=16), "  Design pipeline completed successfully!"],
+            color="success", duration=5000,
+        )
+        return data, ok_msg
 
-            assumptions = {
-                "payload_kg": float(payload_kg),
-                "payload_fraction": float(payload_frac),
-                "cruise_speed_ms": float(cruise_v),
-                "endurance_s": float(endurance),
-                "altitude_m": float(altitude),
-                "climb_rate_ms": float(climb_rate),
-                "turn_bank_deg": float(turn_bank),
-                "takeoff_ground_roll_m": float(to_roll),
-            }
-            airfoil_params = {
-                "code": str(naca_code),
-                "Cla": float(cla),
-                "alpha0_deg": float(alpha0),
-                "Cd0": float(cd0),
-                "Cdi_factor": float(cdi_factor),
-            }
+    # ── Auto-run pipeline when a preset is loaded ────────────────────
+    @app.callback(
+        Output("store-design-result", "data", allow_duplicate=True),
+        Input("store-aircraft-config", "data"),
+        prevent_initial_call=True,
+    )
+    def auto_run_from_preset(config):
+        if not config:
+            return no_update
 
-            result = run_passive_design(
-                assumptions,
-                airfoil_params,
-                AR_main=float(ar),
-                TR_main=float(tr),
-                Vh_target=float(vh),
-                Vv_target=float(vv),
-                motor_eff=float(motor_eff),
-                prop_eff=float(prop_eff),
-                battery_voltage=float(batt_v),
-            )
+        a = config.get("assumptions", {})
+        af = config.get("airfoil", {})
 
-            # Serialize to JSON-friendly dict
-            data = _serialize_result(result, naca_code, batt_ah, cruise_v)
-
-            # Compute span loads
-            wm = result.concept.wing_main
-            half_span = wm.span / 2
-            n_pts = 60
-            y = np.linspace(0, half_span, n_pts)
-            chord = trapezoid_chord(y, half_span, wm.chord_root, wm.chord_tip)
-            rho = density_isa(float(altitude))
-            q_inf = dynamic_pressure(float(cruise_v), rho)
-            CL_cruise = 0.45
-            Cl_dist = elliptic_Cl(y, half_span, CL_cruise, wm.aspect_ratio)
-            sl = compute_span_loads(y, chord, Cl_dist, q_inf)
-            data["span_loads"] = {
-                "y": sl.y.tolist(),
-                "lift_per_span": sl.lift_per_span.tolist(),
-                "shear": sl.shear.tolist(),
-                "bending": sl.bending.tolist(),
-                "total_lift": float(sl.total_lift),
-            }
-
-            ok_msg = dbc.Alert(
-                [DashIconify(icon="mdi:check-circle", width=16), "  Design pipeline completed successfully!"],
-                color="success", duration=5000,
-            )
-            return data, ok_msg
-
-        except Exception as e:
-            tb = traceback.format_exc()
-            err_msg = dbc.Alert(
-                [DashIconify(icon="mdi:alert-circle", width=16), f"  Error: {e}"],
-                color="danger",
-            )
-            return no_update, err_msg
+        data, err = _execute_pipeline(
+            a.get("payload_kg", 0.25),
+            a.get("payload_fraction", 0.25),
+            a.get("cruise_speed_ms", 18.0),
+            a.get("endurance_s", 600),
+            a.get("altitude_m", 200),
+            a.get("climb_rate_ms", 5.0),
+            a.get("turn_bank_deg", 45),
+            a.get("takeoff_ground_roll_m", 20.0),
+            af.get("code", "2412"),
+            af.get("Cla", 0.1),
+            af.get("alpha0_deg", -5.0),
+            af.get("Cd0", 0.02),
+            af.get("Cdi_factor", 0.0398),
+            # Design choices — use defaults for presets
+            config.get("AR_main", 8.0),
+            config.get("TR_main", 0.6),
+            config.get("sweep_deg", 0),
+            config.get("dihedral_deg", 5),
+            config.get("Vh_target", 0.45),
+            config.get("Vv_target", 0.035),
+            config.get("SM_target", -0.10),
+            config.get("fuse_ld", 8.0),
+            config.get("motor_eff", 0.80),
+            config.get("prop_eff", 0.65),
+            config.get("battery_voltage", 11.1),
+            config.get("battery_capacity_Ah", 2.2),
+        )
+        if err:
+            return no_update
+        return data
 
     # ── Auto-populate from preset ────────────────────────────────────
     @app.callback(
@@ -202,7 +188,87 @@ def register_callbacks(app: dash.Dash):
         return classes
 
 
-def _serialize_result(result, naca_code, batt_ah, cruise_v):
+def _execute_pipeline(
+    payload_kg, payload_frac, cruise_v, endurance, altitude,
+    climb_rate, turn_bank, to_roll,
+    naca_code, cla, alpha0, cd0, cdi_factor,
+    ar, tr, sweep, dihedral, vh, vv, sm, fuse_ld,
+    motor_eff, prop_eff, batt_v, batt_ah,
+):
+    """Run the full passive design pipeline.
+
+    Returns ``(data_dict, error_alert)`` — one of the two will be *None*.
+    """
+    try:
+        from rc_aircraft_design.passive import run_passive_design
+        from rc_aircraft_design.wing.loads import (
+            compute_span_loads, elliptic_Cl, trapezoid_chord,
+        )
+        from rc_aircraft_design.utils.math_helpers import density_isa, dynamic_pressure
+
+        assumptions = {
+            "payload_kg": float(payload_kg),
+            "payload_fraction": float(payload_frac),
+            "cruise_speed_ms": float(cruise_v),
+            "endurance_s": float(endurance),
+            "altitude_m": float(altitude),
+            "climb_rate_ms": float(climb_rate),
+            "turn_bank_deg": float(turn_bank),
+            "takeoff_ground_roll_m": float(to_roll),
+        }
+        airfoil_params = {
+            "code": str(naca_code),
+            "Cla": float(cla),
+            "alpha0_deg": float(alpha0),
+            "Cd0": float(cd0),
+            "Cdi_factor": float(cdi_factor),
+        }
+
+        result = run_passive_design(
+            assumptions,
+            airfoil_params,
+            AR_main=float(ar),
+            TR_main=float(tr),
+            Vh_target=float(vh),
+            Vv_target=float(vv),
+            motor_eff=float(motor_eff),
+            prop_eff=float(prop_eff),
+            battery_voltage=float(batt_v),
+        )
+
+        data = _serialize_result(result, naca_code, cla, alpha0, batt_ah, cruise_v)
+
+        # Span loads
+        wm = result.concept.wing_main
+        half_span = wm.span / 2
+        n_pts = 60
+        y = np.linspace(0, half_span, n_pts)
+        chord = trapezoid_chord(y, half_span, wm.chord_root, wm.chord_tip)
+        rho = density_isa(float(altitude))
+        q_inf = dynamic_pressure(float(cruise_v), rho)
+        CL_cruise = 0.45
+        Cl_dist = elliptic_Cl(y, half_span, CL_cruise, wm.aspect_ratio)
+        sl = compute_span_loads(y, chord, Cl_dist, q_inf)
+        data["span_loads"] = {
+            "y": sl.y.tolist(),
+            "lift_per_span": sl.lift_per_span.tolist(),
+            "shear": sl.shear.tolist(),
+            "bending": sl.bending.tolist(),
+            "total_lift": float(sl.total_lift),
+        }
+
+        return data, None
+
+    except Exception as e:
+        tb = traceback.format_exc()
+        err_msg = dbc.Alert(
+            [DashIconify(icon="mdi:alert-circle", width=16), f"  Error: {e}"],
+            color="danger",
+        )
+        return None, err_msg
+
+
+def _serialize_result(result, naca_code, cla, alpha0, batt_ah, cruise_v):
     """Convert PassiveDesignResult to a JSON-serializable dict."""
     from rc_aircraft_design.wing.geometry import compute_mac
 
