@@ -50,6 +50,16 @@ def layout(**kwargs):
     return html.Div([
         page_header("Dashboard", "RC Aircraft Design Studio — concept to manufacturing in one workflow"),
 
+        # GitHub link
+        html.Div(
+            html.A(
+                [DashIconify(icon="mdi:github", width=20, className="me-2"), "View on GitHub"],
+                href="https://github.com/HaoLi111/rc-plane-design",
+                target="_blank",
+                className="btn btn-outline-secondary btn-sm mb-3",
+            ),
+        ),
+
         # Quick-start presets
         dbc.Card([
             dbc.CardHeader([DashIconify(icon="mdi:rocket-launch-outline", width=16), " Quick Start — Load a Preset"]),
