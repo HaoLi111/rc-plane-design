@@ -2,6 +2,8 @@
 
 Python toolkit for fixed-wing RC aircraft design, analysis, and manufacturing template generation.
 
+Every module works standalone — use them as a library to analyze an existing aircraft, or wire them together through the passive pipeline to generate a complete design from mission assumptions. Either way, you get the same aero, structures, stability, and CAD tools.
+
 Ported from R/Julia originals by HaoLi111, with added NACA airfoil generation, OpenGL 3D visualization, and DXF/CAD export.
 
 ## Modules
@@ -27,15 +29,77 @@ uv sync --extra dev        # install dev deps (pytest, ruff)
 uv sync --extra all        # install everything
 ```
 
-## Quickstart
+## Two Workflows
+
+The package supports two complementary workflows:
+
+| Workflow | Start with | End with |
+|----------|-----------|----------|
+| **Analysis** | An existing aircraft (JSON or code) | Aero polars, stability margins, structural loads, DXF templates |
+| **Design** | ~10 mission assumptions | A complete sized aircraft + all of the above |
+
+You can mix and match freely — design a plane with the passive pipeline, then run extra analysis passes on it; or define your own geometry by hand and skip the pipeline entirely.
+
+## Quickstart — Analyze an Existing Aircraft
+
+Load one of the included aircraft definitions (or create your own) and use individual modules:
 
 ```python
+import json
 from rc_aircraft_design.aero import LinearAirfoil, naca4
-from rc_aircraft_design.wing import Wing, compute_mac
+from rc_aircraft_design.wing import Wing, ConventionalConcept, compute_mac, planform_coords
 from rc_aircraft_design.stability import analyze_stability
-from rc_aircraft_design.constraints import analyze_constraints
-from rc_aircraft_design.power import ElectricPowerSystem
+from rc_aircraft_design.constraints import ConstraintParams, analyze_constraints
+from rc_aircraft_design.wing.loads import compute_span_loads_simple
 from rc_aircraft_design.cad import DxfWriter
+
+# Load an aircraft JSON  (or build Wing objects directly — it's the same API)
+data = json.load(open("data/examples/sport_trainer_40.json"))
+
+# Aero analysis
+af_d = data["airfoil"]
+af = LinearAirfoil(Cla=af_d["Cla"], alpha0_deg=af_d["alpha0_deg"],
+                   Cd0=af_d["Cd0"], Cdi_factor=af_d["Cdi_factor"])
+result = af.analyze()
+print(f"L/D max = {result.LDmax:.1f} at α = {result.alpha_LDmax:.1f}°")
+
+# Build geometry and compute MAC
+wm = Wing(**data["wing_main"])
+mac = compute_mac(wm)
+print(f"MAC = {mac.mac_length:.3f} m, AR = {wm.aspect_ratio:.1f}")
+
+# Stability
+wh = Wing(**data["wing_horiz"])
+wv = Wing(**data["wing_vert"])
+fus = data["fuselage"]
+concept = ConventionalConcept(
+    wing_main=wm, wing_horiz=wh, wing_vert=wv,
+    fuselage_length=fus["length"],
+    fuselage_stations=fus["stations"], fuselage_radii=fus["radii"],
+)
+stab = analyze_stability(concept, X_cg=data["cg_x"])
+print(f"Static margin = {stab.static_margin:.3f}")
+
+# Span loads
+loads = compute_span_loads_simple(wm, lift_N=wm.area * 50)  # 50 Pa example
+
+# Export planform to DXF
+dxf = DxfWriter()
+for wing, layer in [(wm, "WING"), (wh, "HTAIL"), (wv, "VTAIL")]:
+    px, py = planform_coords(wing)
+    dxf.add_planform(px, py, layer=layer)
+dxf.save("sport_trainer.dxf")
+```
+
+No pipeline needed — pick the modules you want and call them directly.
+
+### Quickstart — Use Modules Standalone
+
+You don't need a JSON file at all. Every module accepts plain Python objects:
+
+```python
+from rc_aircraft_design.aero import naca4
+from rc_aircraft_design.wing import Wing, compute_mac
 
 # Generate a NACA 2412 airfoil
 x, yu, yl = naca4("2412")
@@ -44,23 +108,25 @@ x, yu, yl = naca4("2412")
 w = Wing(chord_root=0.3, chord_tip=0.2, span=1.5, sweep_deg=5, dihedral_deg=3)
 mac = compute_mac(w)
 print(f"MAC = {mac.mac_length:.3f} m, AR = {w.aspect_ratio:.1f}")
-
-# Run an alpha sweep
-af = LinearAirfoil(Cla=0.1, alpha0_deg=-2, Cd0=0.025, Cdi_factor=0.04)
-result = af.analyze()
-print(f"L/D max = {result.LDmax:.1f} at α = {result.alpha_LDmax:.1f}°")
-
-# Export a planform to DXF
-from rc_aircraft_design.wing import planform_coords
-px, py = planform_coords(w)
-dxf = DxfWriter()
-dxf.add_planform(px, py)
-dxf.save("my_wing.dxf")
 ```
 
-## Passive Design — Full Aircraft from Assumptions
+### Aircraft JSON Format
 
-The **passive design pipeline** ([`passive.py`](rc_aircraft_design/passive.py)) derives a complete conventional-layout RC aircraft from a handful of mission assumptions — no manual geometry required. Ported from the rAviExp R package (`legacy/rAviExp/`), each stage feeds forward analytically with no iteration loops:
+Full aircraft definitions live in [`data/examples/`](data/examples/). Each JSON contains geometry, airfoil params, weight, power, and constraint targets — everything needed to run any analysis module:
+
+| File | Description |
+|------|-------------|
+| [`classic_2m_glider.json`](data/examples/classic_2m_glider.json) | 2 m sailplane, no motor |
+| [`sport_trainer_40.json`](data/examples/sport_trainer_40.json) | Classic .40-size sport trainer |
+| [`extra_330sc_3d.json`](data/examples/extra_330sc_3d.json) | 3D aerobatic pattern plane |
+
+See [`tests/test_example_planes.py`](tests/test_example_planes.py) for the full analysis workflow exercised on every plane.
+
+## Design — Full Aircraft from Assumptions
+
+If you don't already have an aircraft, the **passive design pipeline** ([`passive.py`](rc_aircraft_design/passive.py)) derives a complete conventional-layout RC aircraft from a handful of mission assumptions — no manual geometry required. The output is the same `ConventionalConcept` you'd build by hand, so every analysis module works on it identically.
+
+Ported from the rAviExp R package (`legacy/rAviExp/`), each stage feeds forward analytically with no iteration loops:
 
 ```
 Airfoil assumptions → Constraint analysis (T/W vs W/S)
