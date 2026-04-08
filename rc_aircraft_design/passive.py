@@ -149,10 +149,10 @@ def run_passive_design(
 
     # ── Stage 4: Geometry ────────────────────────────────────────────
     b_main, cr_main, ct_main = size_wing(S_wing, AR_main, TR_main)
-    fuse_length = b_main * 0.75
+    fuse_length = max(b_main * 0.75, 0.15)  # floor for very small aircraft
 
-    # Tail lever arm scales with fuselage
-    tail_lever = fuse_length * 0.55
+    # Tail lever arm scales with fuselage (floor avoids zero-division)
+    tail_lever = max(fuse_length * 0.60, 0.10)
 
     wm = Wing(
         cr_main, ct_main, b_main,
@@ -167,8 +167,8 @@ def run_passive_design(
     S_vert = Vv_target * b_main * S_wing / tail_lever
     b_v, cr_v, ct_v = size_wing(S_vert, AR_vert, TR_vert)
 
-    horiz_x = wm.x + tail_lever + 0.1
-    vert_x = horiz_x - 0.05
+    horiz_x = wm.x + tail_lever
+    vert_x = horiz_x - 0.02
 
     wh = Wing(cr_h, ct_h, b_h, foil="0009", type_=0, x=horiz_x)
     wv = Wing(cr_v, ct_v, b_v, foil="0009", type_=2, x=vert_x, sweep_deg=25.0)
@@ -179,7 +179,12 @@ def run_passive_design(
     )
 
     # ── Stage 5: Stability ───────────────────────────────────────────
-    X_cg = wm.x + mac_main.x_sweep + 0.28 * mac_main.mac_length
+    # Place CG for a target static margin of −0.10 (10% MAC ahead of NP).
+    # First, get the neutral point from a dummy CG, then position CG properly.
+    dummy_stab = analyze_stability(concept, X_cg=0.0)
+    X_np = dummy_stab.X_np
+    target_SM = -0.10  # negative = CG ahead of NP = stable
+    X_cg = X_np + target_SM * mac_main.mac_length
     stability = analyze_stability(concept, X_cg=X_cg)
     checks = check_design_ranges(stability)
 

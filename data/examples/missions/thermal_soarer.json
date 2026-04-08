@@ -5,7 +5,7 @@
     "assumptions": {
         "_comment": "These are the ONLY user inputs. Everything else is derived.",
         "mission": "thermal soaring, slope lift, hand or bungee launch",
-        "payload_kg": 0.0,
+        "payload_kg": 0.02,
         "payload_fraction": 0.05,
         "cruise_speed_ms": 8.0,
         "endurance_s": 1800,
