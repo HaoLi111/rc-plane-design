@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 
 from ..cad.dxf_writer import DxfWriter
-from .parts import ManufacturingParts, RibProfile, FormerProfile
+from .parts import ManufacturingParts, RibProfile, FormerProfile, SlotRect
 
 
 def _add_rib_to_dxf(
@@ -24,14 +24,13 @@ def _add_rib_to_dxf(
     pts = np.column_stack([rib.x + offset_x, rib.y + offset_y])
     dxf.polyline(pts, closed=True, layer=layer)
 
-    # Spar slot cutouts
-    for slot in rib.spar_slots:
-        x0, y0, x1, y1 = slot
+    # Spar / rod / longeron slot cutouts
+    for slot in rib.slots:
         slot_pts = np.array([
-            [x0 + offset_x, y0 + offset_y],
-            [x1 + offset_x, y0 + offset_y],
-            [x1 + offset_x, y1 + offset_y],
-            [x0 + offset_x, y1 + offset_y],
+            [slot.x0 + offset_x, slot.y0 + offset_y],
+            [slot.x1 + offset_x, slot.y0 + offset_y],
+            [slot.x1 + offset_x, slot.y1 + offset_y],
+            [slot.x0 + offset_x, slot.y1 + offset_y],
         ])
         dxf.polyline(slot_pts, closed=True, layer=layer + "_SLOTS")
 

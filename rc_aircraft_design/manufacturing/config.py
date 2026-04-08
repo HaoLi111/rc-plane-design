@@ -23,19 +23,42 @@ class ControlSurfaceConfig:
 
 
 @dataclass
+class SparConfig:
+    """A single spar / longeron / rod member running spanwise through ribs."""
+
+    name: str                          # e.g. "main_spar", "le_rod", "upper_longeron"
+    x_frac: float                      # chordwise position as fraction of chord from LE
+    width_mm: float = 6.0             # cross-section width (chordwise)
+    height_mm: float = 3.0            # cross-section height (thickness direction)
+    surface: str = "center"            # "upper" | "lower" | "center" — where the slot sits
+    # "upper"  = slot notched down from upper skin
+    # "lower"  = slot notched up from lower skin
+    # "center" = full-depth slot through rib (traditional spar)
+
+
+@dataclass
 class WingBuildConfig:
     """Wing panel manufacturing configuration."""
 
     n_ribs: int = 12                  # total rib count (one half)
-    spar_x_frac: list[float] = field(default_factory=lambda: [0.25, 0.65])
-    spar_width_mm: float = 6.0       # spar cap width
-    spar_height_mm: float = 3.0      # spar cap thickness
+
+    # ── Spanwise structural members ─────────────────────────────────
+    # Each entry creates a slot in every rib.  Typical RC wing has:
+    #   LE rod, front spar, rear spar, upper/lower longerons, TE stock
+    spars: list[SparConfig] = field(default_factory=lambda: [
+        SparConfig("le_rod",         x_frac=0.03, width_mm=5.0, height_mm=5.0, surface="center"),
+        SparConfig("front_spar",     x_frac=0.25, width_mm=6.0, height_mm=3.0, surface="center"),
+        SparConfig("upper_longeron", x_frac=0.40, width_mm=3.0, height_mm=3.0, surface="upper"),
+        SparConfig("lower_longeron", x_frac=0.40, width_mm=3.0, height_mm=3.0, surface="lower"),
+        SparConfig("rear_spar",      x_frac=0.65, width_mm=6.0, height_mm=3.0, surface="center"),
+        SparConfig("te_stock",       x_frac=0.97, width_mm=6.0, height_mm=3.0, surface="center"),
+    ])
+
     material_thickness_mm: float = 3.0  # sheet material (plywood/balsa/foam)
     tab_width_mm: float = 5.0        # interlocking tab width
     tab_depth_mm: float = 3.0        # tab depth (= material thickness usually)
     le_sheeting: bool = True          # leading edge D-box sheeting
     le_sheeting_frac: float = 0.15    # D-box extent as fraction of chord
-    te_stock_mm: float = 6.0         # trailing edge stock width
     dihedral_break_rib: int | None = None  # rib index where dihedral changes (polyhedral)
     washout_deg: float = 0.0         # tip washout [deg]
     control_surfaces: list[ControlSurfaceConfig] = field(default_factory=list)
@@ -69,24 +92,26 @@ class ManufacturingConfig:
     fuselage: FuselageBuildConfig = field(default_factory=FuselageBuildConfig)
     htail: WingBuildConfig = field(default_factory=lambda: WingBuildConfig(
         n_ribs=6,
-        spar_x_frac=[0.30],
-        spar_width_mm=4.0,
-        spar_height_mm=2.0,
+        spars=[
+            SparConfig("le_rod",     x_frac=0.03, width_mm=3.0, height_mm=3.0, surface="center"),
+            SparConfig("main_spar",  x_frac=0.30, width_mm=4.0, height_mm=2.0, surface="center"),
+            SparConfig("te_stock",   x_frac=0.97, width_mm=4.0, height_mm=2.0, surface="center"),
+        ],
         material_thickness_mm=2.0,
         le_sheeting=False,
-        te_stock_mm=4.0,
         control_surfaces=[ControlSurfaceConfig(name="elevator", type="elevator",
                                                 start_rib=0, end_rib=-1,
                                                 hinge_x_frac=0.65)],
     ))
     vtail: WingBuildConfig = field(default_factory=lambda: WingBuildConfig(
         n_ribs=4,
-        spar_x_frac=[0.30],
-        spar_width_mm=4.0,
-        spar_height_mm=2.0,
+        spars=[
+            SparConfig("le_rod",     x_frac=0.03, width_mm=3.0, height_mm=3.0, surface="center"),
+            SparConfig("main_spar",  x_frac=0.30, width_mm=4.0, height_mm=2.0, surface="center"),
+            SparConfig("te_stock",   x_frac=0.97, width_mm=4.0, height_mm=2.0, surface="center"),
+        ],
         material_thickness_mm=2.0,
         le_sheeting=False,
-        te_stock_mm=4.0,
         control_surfaces=[ControlSurfaceConfig(name="rudder", type="rudder",
                                                 start_rib=0, end_rib=-1,
                                                 hinge_x_frac=0.60)],
@@ -102,12 +127,17 @@ def make_sport_flyer_config() -> ManufacturingConfig:
         name="sport_flyer",
         wing=WingBuildConfig(
             n_ribs=12,
-            spar_x_frac=[0.25, 0.65],
-            spar_width_mm=6.0,
+            spars=[
+                SparConfig("le_rod",         x_frac=0.03, width_mm=5.0, height_mm=5.0, surface="center"),
+                SparConfig("front_spar",     x_frac=0.25, width_mm=6.0, height_mm=3.0, surface="center"),
+                SparConfig("upper_longeron", x_frac=0.42, width_mm=3.0, height_mm=3.0, surface="upper"),
+                SparConfig("lower_longeron", x_frac=0.42, width_mm=3.0, height_mm=3.0, surface="lower"),
+                SparConfig("rear_spar",      x_frac=0.65, width_mm=6.0, height_mm=3.0, surface="center"),
+                SparConfig("te_stock",       x_frac=0.97, width_mm=6.0, height_mm=3.0, surface="center"),
+            ],
             material_thickness_mm=3.0,
             le_sheeting=True,
             le_sheeting_frac=0.15,
-            te_stock_mm=6.0,
             washout_deg=1.5,
             control_surfaces=[
                 ControlSurfaceConfig(

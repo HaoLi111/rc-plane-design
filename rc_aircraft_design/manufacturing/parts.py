@@ -13,12 +13,24 @@ import numpy as np
 
 from ..aero.airfoil import naca4
 from ..wing.geometry import Wing, ConventionalConcept
-from .config import ManufacturingConfig, WingBuildConfig, FuselageBuildConfig
+from .config import ManufacturingConfig, WingBuildConfig, FuselageBuildConfig, SparConfig
 
 
 # ---------------------------------------------------------------------------
 # Data structures for generated parts
 # ---------------------------------------------------------------------------
+
+@dataclass
+class SlotRect:
+    """A rectangular slot cut into a rib for a spar/rod/longeron."""
+
+    x0: float       # left edge [mm from LE]
+    y0: float       # bottom edge [mm]
+    x1: float       # right edge [mm from LE]
+    y1: float       # top edge [mm]
+    name: str = ""  # spar name for labelling/colour coding
+    surface: str = "center"  # "upper" | "lower" | "center"
+
 
 @dataclass
 class RibProfile:
@@ -29,10 +41,15 @@ class RibProfile:
     chord_mm: float          # local chord [mm]
     x: np.ndarray            # airfoil x coords [mm] (closed loop)
     y: np.ndarray            # airfoil y coords [mm] (closed loop)
-    spar_slots: list[tuple[float, float, float, float]]  # [(x0, y0, x1, y1), ...] slot rects
+    slots: list[SlotRect]    # all spar/rod/longeron slots
     has_control_surface: bool = False
     hinge_x_mm: float = 0.0  # hinge cut position from LE [mm]
     label: str = ""
+
+    @property
+    def spar_slots(self) -> list[tuple[float, float, float, float]]:
+        """Legacy compatibility: list of (x0, y0, x1, y1) tuples."""
+        return [(s.x0, s.y0, s.x1, s.y1) for s in self.slots]
 
 
 @dataclass
@@ -76,22 +93,45 @@ def _airfoil_profile_mm(foil_code: str, chord_mm: float,
 
 def _spar_slot_rect(
     chord_mm: float,
-    spar_x_frac: float,
+    spar: SparConfig,
     foil_code: str,
-    spar_width_mm: float,
-    material_thickness_mm: float,
-) -> tuple[float, float, float, float]:
-    """Compute a spar slot rectangle (x0, y_bottom, x1, y_top) in mm."""
-    x_center = spar_x_frac * chord_mm
-    half_w = spar_width_mm / 2.0
-    # Find airfoil thickness at spar position
+) -> SlotRect:
+    """Compute a spar/rod/longeron slot rectangle in mm.
+
+    surface="center" → full-depth slot (traditional spar web pass-through)
+    surface="upper"  → notch from upper skin inward (upper longeron)
+    surface="lower"  → notch from lower skin inward (lower longeron)
+    """
+    x_center = spar.x_frac * chord_mm
+    half_w = spar.width_mm / 2.0
+
+    # Get airfoil surfaces at this chordwise position
     x_n, yu_n, yl_n = naca4(foil_code, n_points=200)
-    yu_at = float(np.interp(spar_x_frac, x_n, yu_n)) * chord_mm
-    yl_at = float(np.interp(spar_x_frac, x_n, yl_n)) * chord_mm
-    # Slot goes from lower surface up by material thickness, centered on spar
-    slot_bottom = yl_at
-    slot_top = yl_at + material_thickness_mm
-    return (x_center - half_w, slot_bottom, x_center + half_w, slot_top)
+    yu_at = float(np.interp(spar.x_frac, x_n, yu_n)) * chord_mm
+    yl_at = float(np.interp(spar.x_frac, x_n, yl_n)) * chord_mm
+
+    if spar.surface == "upper":
+        # Notch inward from upper surface
+        slot_top = yu_at
+        slot_bottom = yu_at - spar.height_mm
+    elif spar.surface == "lower":
+        # Notch inward from lower surface
+        slot_bottom = yl_at
+        slot_top = yl_at + spar.height_mm
+    else:
+        # Center / full-depth: spar web runs through the rib
+        mid_y = (yu_at + yl_at) / 2.0
+        slot_bottom = mid_y - spar.height_mm / 2.0
+        slot_top = mid_y + spar.height_mm / 2.0
+
+    return SlotRect(
+        x0=x_center - half_w,
+        y0=slot_bottom,
+        x1=x_center + half_w,
+        y1=slot_top,
+        name=spar.name,
+        surface=spar.surface,
+    )
 
 
 def generate_wing_ribs(
@@ -115,12 +155,10 @@ def generate_wing_ribs(
         # Airfoil contour
         x_prof, y_prof = _airfoil_profile_mm(foil, chord)
 
-        # Spar slots
+        # All spar/rod/longeron slots
         slots = []
-        for spar_frac in build.spar_x_frac:
-            slot = _spar_slot_rect(chord, spar_frac, foil,
-                                   build.spar_width_mm,
-                                   build.material_thickness_mm)
+        for spar in build.spars:
+            slot = _spar_slot_rect(chord, spar, foil)
             slots.append(slot)
 
         # Control surface check
@@ -138,7 +176,7 @@ def generate_wing_ribs(
             chord_mm=chord,
             x=x_prof,
             y=y_prof,
-            spar_slots=slots,
+            slots=slots,
             has_control_surface=has_cs,
             hinge_x_mm=hinge_x,
             label=f"{prefix}{i}",
