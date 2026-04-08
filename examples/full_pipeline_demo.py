@@ -105,12 +105,18 @@ def step_manufacturing(result):
     print(f"  Fuselage formers: {len(parts.fuselage_formers)}")
 
     # Print rib table
-    print(f"\n  {'Rib':>4} {'Span[mm]':>9} {'Chord[mm]':>10} {'Ctrl':>5} {'Hinge':>8}")
-    print(f"  {'─'*38}")
+    print(f"\n  {'Rib':>4} {'Span[mm]':>9} {'Chord[mm]':>10} {'Slots':>6} {'Ctrl':>5} {'Hinge':>8}")
+    print(f"  {'─'*45}")
     for rib in parts.wing_ribs:
         cs_flag = "✓" if rib.has_control_surface else ""
         hinge = f"{rib.hinge_x_mm:.1f}" if rib.has_control_surface else ""
-        print(f"  {rib.label:>4} {rib.span_pos_mm:9.1f} {rib.chord_mm:10.1f} {cs_flag:>5} {hinge:>8}")
+        print(f"  {rib.label:>4} {rib.span_pos_mm:9.1f} {rib.chord_mm:10.1f} {len(rib.slots):6} {cs_flag:>5} {hinge:>8}")
+
+    # Print spar legend
+    if parts.wing_ribs:
+        print(f"\n  Spars in each rib:")
+        for slot in parts.wing_ribs[0].slots:
+            print(f"    {slot.name:20s}  x={slot.x0:.0f}–{slot.x1:.0f} mm  ({slot.surface})")
 
     # Print former table
     print(f"\n  {'Fmr':>4} {'Station[mm]':>12} {'W[mm]':>7} {'H[mm]':>7}")
@@ -125,6 +131,14 @@ def step_manufacturing(result):
 #  Step 4: Rib gallery plot
 # =====================================================================
 
+# Colour map for slot types
+_SLOT_COLORS = {
+    "upper":  "#e07020",   # orange — upper longeron
+    "lower":  "#2080e0",   # blue — lower longeron
+    "center": "#d02020",   # red — full-depth spar / LE rod / TE stock
+}
+
+
 def step_rib_gallery(parts):
     banner("STEP 4: Rib Gallery Visualization")
 
@@ -132,25 +146,25 @@ def step_rib_gallery(parts):
     n = len(parts.wing_ribs)
     cols = min(n, 6)
     rows = (n + cols - 1) // cols
-    fig, axes = plt.subplots(rows, cols, figsize=(3 * cols, 2.5 * rows))
+    fig, axes = plt.subplots(rows, cols, figsize=(3.5 * cols, 3 * rows))
     axes_flat = np.array(axes).flatten() if n > 1 else [axes]
 
     for i, rib in enumerate(parts.wing_ribs):
         ax = axes_flat[i]
         ax.plot(rib.x, rib.y, "C0", lw=1.2)
-        ax.fill(rib.x, rib.y, alpha=0.1, color="C0")
+        ax.fill(rib.x, rib.y, alpha=0.08, color="C0")
 
-        # Draw spar slots
-        for slot in rib.spar_slots:
-            x0, y0, x1, y1 = slot
-            rect_x = [x0, x1, x1, x0, x0]
-            rect_y = [y0, y0, y1, y1, y0]
-            ax.fill(rect_x, rect_y, color="red", alpha=0.4)
-            ax.plot(rect_x, rect_y, "r-", lw=0.8)
+        # Draw spar/rod/longeron slots with type-based colours
+        for slot in rib.slots:
+            rect_x = [slot.x0, slot.x1, slot.x1, slot.x0, slot.x0]
+            rect_y = [slot.y0, slot.y0, slot.y1, slot.y1, slot.y0]
+            color = _SLOT_COLORS.get(slot.surface, "red")
+            ax.fill(rect_x, rect_y, color=color, alpha=0.5)
+            ax.plot(rect_x, rect_y, color=color, lw=0.6)
 
         # Hinge line
         if rib.has_control_surface:
-            ax.axvline(rib.hinge_x_mm, color="green", ls="--", lw=0.8, alpha=0.7)
+            ax.axvline(rib.hinge_x_mm, color="green", ls="--", lw=1.0, alpha=0.8)
 
         ax.set_aspect("equal")
         ax.set_title(f"{rib.label}  ({rib.chord_mm:.0f} mm)", fontsize=8)
@@ -161,7 +175,9 @@ def step_rib_gallery(parts):
     for j in range(n, len(axes_flat)):
         axes_flat[j].set_visible(False)
 
-    fig.suptitle("Wing Rib Profiles — Sport Flyer", fontsize=12, fontweight="bold")
+    fig.suptitle("Wing Rib Profiles — Sport Flyer\n"
+                 "(red=spar/LE/TE  orange=upper longeron  blue=lower longeron  green=hinge)",
+                 fontsize=11, fontweight="bold")
     fig.tight_layout()
     save(fig, "sport_flyer_rib_gallery.png")
 
