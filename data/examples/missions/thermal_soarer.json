@@ -1,0 +1,24 @@
+{
+    "name": "Thermal Soarer",
+    "description": "Passive design: lightweight 2m thermal glider for slope/thermal flying. No motor — hand launch or bungee.",
+    "citation": "rAviExp passive pipeline. Glider mission — pure aerodynamic efficiency, no power system.",
+    "assumptions": {
+        "_comment": "These are the ONLY user inputs. Everything else is derived.",
+        "mission": "thermal soaring, slope lift, hand or bungee launch",
+        "payload_kg": 0.0,
+        "payload_fraction": 0.05,
+        "cruise_speed_ms": 8.0,
+        "endurance_s": 1800,
+        "altitude_m": 100,
+        "climb_rate_ms": 0.5,
+        "turn_bank_deg": 30,
+        "takeoff_ground_roll_m": 50.0
+    },
+    "airfoil": {
+        "code": "6412",
+        "Cla": 0.105,
+        "alpha0_deg": -4.0,
+        "Cd0": 0.015,
+        "Cdi_factor": 0.022
+    }
+}

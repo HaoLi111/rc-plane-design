@@ -1,0 +1,24 @@
+{
+    "name": "3D Aerobat",
+    "description": "Passive design: high-power 3D aerobatic plane. Symmetrical airfoil, extreme climb authority.",
+    "citation": "rAviExp passive pipeline. 3D/IMAC mission — high T/W, agile.",
+    "assumptions": {
+        "_comment": "These are the ONLY user inputs. Everything else is derived.",
+        "mission": "3D aerobatics, hovering, torque rolls, short grass field",
+        "payload_kg": 0.15,
+        "payload_fraction": 0.20,
+        "cruise_speed_ms": 22.0,
+        "endurance_s": 420,
+        "altitude_m": 150,
+        "climb_rate_ms": 15.0,
+        "turn_bank_deg": 70,
+        "takeoff_ground_roll_m": 10.0
+    },
+    "airfoil": {
+        "code": "0015",
+        "Cla": 0.11,
+        "alpha0_deg": 0.0,
+        "Cd0": 0.024,
+        "Cdi_factor": 0.038
+    }
+}

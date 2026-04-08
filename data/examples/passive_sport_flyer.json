@@ -1,0 +1,27 @@
+{
+    "name": "Passive Sport Flyer",
+    "description": "Derived entirely from assumptions — no manual geometry. Demonstrates the passive design pipeline from rAviExp where ~10 top-level parameters produce a complete aircraft.",
+    "citation": "Design pipeline ported from rAviExp (R package). Aerodynamic assumptions → constraint analysis → weight sizing → geometry → stability, with no iteration loops.",
+    "assumptions": {
+        "_comment": "These are the ONLY user inputs. Everything else is derived.",
+        "mission": "weekend sport flying, gentle aerobatics, grass field",
+        "payload_kg": 0.25,
+        "payload_fraction": 0.25,
+        "cruise_speed_ms": 18.0,
+        "endurance_s": 600,
+        "altitude_m": 200,
+        "climb_rate_ms": 5.0,
+        "turn_bank_deg": 45,
+        "takeoff_ground_roll_m": 20.0
+    },
+    "airfoil": {
+        "code": "2412",
+        "Cla": 0.1,
+        "alpha0_deg": -5.0,
+        "Cd0": 0.02,
+        "Cdi_factor": 0.0398
+    },
+    "derived": {
+        "_comment": "All values below are COMPUTED from the assumptions above — see examples/passive_design_from_assumptions.py"
+    }
+}

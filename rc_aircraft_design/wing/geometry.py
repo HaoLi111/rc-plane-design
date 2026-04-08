@@ -94,8 +94,8 @@ def compute_mac(wing: Wing) -> MACResult:
     # Sweep distance at tip
     S_tip = half_span * tand(wing.sweep_deg)
 
-    # MAC length
-    mac = Cr * (1 + lam + lam**2) / (3 * (1 + lam))
+    # MAC length: c̄ = (2/3) * Cr * (1 + λ + λ²) / (1 + λ)
+    mac = (2.0 / 3.0) * Cr * (1 + lam + lam**2) / (1 + lam)
 
     # Sweep distance at MAC station
     x_sweep = S_tip * (Cr + 2 * Ct) / (3 * (Cr + Ct))

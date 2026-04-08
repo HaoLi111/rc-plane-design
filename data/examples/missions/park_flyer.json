@@ -1,0 +1,24 @@
+{
+    "name": "Mini Park Flyer",
+    "description": "Passive design: tiny slow-flying park plane for calm evenings. Ultra-light, low speed.",
+    "citation": "rAviExp passive pipeline. Micro/park-flyer mission — minimum footprint.",
+    "assumptions": {
+        "_comment": "These are the ONLY user inputs. Everything else is derived.",
+        "mission": "calm-wind park flying, small field, beginner-friendly",
+        "payload_kg": 0.05,
+        "payload_fraction": 0.15,
+        "cruise_speed_ms": 8.0,
+        "endurance_s": 480,
+        "altitude_m": 50,
+        "climb_rate_ms": 2.0,
+        "turn_bank_deg": 30,
+        "takeoff_ground_roll_m": 8.0
+    },
+    "airfoil": {
+        "code": "4412",
+        "Cla": 0.10,
+        "alpha0_deg": -4.0,
+        "Cd0": 0.028,
+        "Cdi_factor": 0.045
+    }
+}

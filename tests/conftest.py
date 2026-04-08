@@ -16,9 +16,18 @@ def _load_plane(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-@pytest.fixture(params=PLANE_FILES, ids=lambda p: p.stem)
+def _is_full_plane(path: Path) -> bool:
+    """True if the JSON has a full aircraft definition (not just assumptions)."""
+    data = _load_plane(path)
+    return "wing_main" in data
+
+
+FULL_PLANE_FILES = [p for p in PLANE_FILES if _is_full_plane(p)]
+
+
+@pytest.fixture(params=FULL_PLANE_FILES, ids=lambda p: p.stem)
 def plane_data(request) -> dict:
-    """Parametrised fixture: yields each example plane JSON as a dict."""
+    """Parametrised fixture: yields each fully-defined example plane as a dict."""
     return _load_plane(request.param)
 
 

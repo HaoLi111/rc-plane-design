@@ -1,0 +1,24 @@
+{
+    "name": "FPV Racing Quad-style Wing",
+    "description": "Passive design: fast FPV flying wing for speed runs and proximity flying.",
+    "citation": "rAviExp passive pipeline. High-speed low-drag mission.",
+    "assumptions": {
+        "_comment": "These are the ONLY user inputs. Everything else is derived.",
+        "mission": "FPV speed flying, low altitude, paved runway",
+        "payload_kg": 0.35,
+        "payload_fraction": 0.30,
+        "cruise_speed_ms": 30.0,
+        "endurance_s": 300,
+        "altitude_m": 50,
+        "climb_rate_ms": 10.0,
+        "turn_bank_deg": 60,
+        "takeoff_ground_roll_m": 15.0
+    },
+    "airfoil": {
+        "code": "0012",
+        "Cla": 0.11,
+        "alpha0_deg": 0.0,
+        "Cd0": 0.018,
+        "Cdi_factor": 0.035
+    }
+}

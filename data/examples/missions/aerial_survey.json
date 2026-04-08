@@ -1,0 +1,24 @@
+{
+    "name": "Aerial Survey / Mapping Platform",
+    "description": "Passive design: stable camera platform for aerial photography. Long endurance, gentle manoeuvres.",
+    "citation": "rAviExp passive pipeline. Surveillance/mapping mission — payload-heavy, long loiter.",
+    "assumptions": {
+        "_comment": "These are the ONLY user inputs. Everything else is derived.",
+        "mission": "aerial photography, mapping, long loiter over target area",
+        "payload_kg": 0.50,
+        "payload_fraction": 0.30,
+        "cruise_speed_ms": 14.0,
+        "endurance_s": 1200,
+        "altitude_m": 300,
+        "climb_rate_ms": 3.0,
+        "turn_bank_deg": 25,
+        "takeoff_ground_roll_m": 30.0
+    },
+    "airfoil": {
+        "code": "4412",
+        "Cla": 0.1,
+        "alpha0_deg": -4.0,
+        "Cd0": 0.022,
+        "Cdi_factor": 0.030
+    }
+}
