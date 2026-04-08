@@ -43,6 +43,18 @@ class LighteningHole:
 
 
 @dataclass
+class XBrace:
+    """>< cross-brace at aileron hinge line."""
+
+    x_left: float   # left tip x [mm]
+    x_right: float  # right tip x [mm]
+    y_top: float    # top vertex y [mm]
+    y_bottom: float # bottom vertex y [mm]
+    cx: float       # centre x (hinge) [mm]
+    cy: float       # centre y [mm]
+
+
+@dataclass
 class RibProfile:
     """Single wing rib: outer airfoil contour with spar slots cut out."""
 
@@ -53,6 +65,7 @@ class RibProfile:
     y: np.ndarray            # airfoil y coords [mm] (closed loop)
     slots: list[SlotRect]    # all spar/rod/longeron slots
     lightening_holes: list[LighteningHole] = field(default_factory=list)
+    xbrace: XBrace | None = None  # >< brace at aileron hinge
     has_control_surface: bool = False
     hinge_x_mm: float = 0.0  # hinge cut position from LE [mm]
     label: str = ""
@@ -144,6 +157,65 @@ def _airfoil_profile_mm(foil_code: str, chord_mm: float,
     return xp, yp
 
 
+def _clip_airfoil_at_hinge(
+    x: np.ndarray, y: np.ndarray,
+    hinge_x_mm: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Clip a closed airfoil contour at the hinge line, removing the TE portion.
+
+    Returns the forward portion as a closed contour (the part of the rib ahead
+    of the hinge).  The aft portion (aileron/elevator spar) is discarded — on a
+    real build it becomes a separate trailing-edge piece.
+    """
+    n = len(x)
+    half = n // 2  # upper surface is first half, lower is second half
+
+    # Upper surface (indices 0..half-1): LE → TE
+    xu = x[:half]
+    yu = y[:half]
+    # Lower surface (indices half..n-1): TE → LE  (reversed direction)
+    xl = x[half:]
+    yl = y[half:]
+
+    # Clip upper at hinge_x_mm
+    mask_u = xu <= hinge_x_mm
+    if not np.any(mask_u):
+        return x, y  # hinge beyond TE — no clipping needed
+    xu_clip = xu[mask_u]
+    yu_clip = yu[mask_u]
+    # Interpolate exact hinge point on upper surface
+    if np.any(xu > hinge_x_mm):
+        idx = np.searchsorted(xu, hinge_x_mm)
+        if 0 < idx < len(xu):
+            t = (hinge_x_mm - xu[idx - 1]) / (xu[idx] - xu[idx - 1] + 1e-12)
+            y_hinge_u = yu[idx - 1] + t * (yu[idx] - yu[idx - 1])
+            xu_clip = np.append(xu_clip, hinge_x_mm)
+            yu_clip = np.append(yu_clip, y_hinge_u)
+
+    # Clip lower at hinge_x_mm (lower runs TE → LE, so x is decreasing)
+    mask_l = xl <= hinge_x_mm
+    if not np.any(mask_l):
+        return x, y
+    xl_clip = xl[mask_l]
+    yl_clip = yl[mask_l]
+    # Interpolate exact hinge point on lower surface (x is decreasing)
+    xl_rev = xl[::-1]
+    yl_rev = yl[::-1]
+    if np.any(xl_rev > hinge_x_mm):
+        idx = np.searchsorted(xl_rev, hinge_x_mm)
+        if 0 < idx < len(xl_rev):
+            t = (hinge_x_mm - xl_rev[idx - 1]) / (xl_rev[idx] - xl_rev[idx - 1] + 1e-12)
+            y_hinge_l = yl_rev[idx - 1] + t * (yl_rev[idx] - yl_rev[idx - 1])
+            # Prepend hinge point (lower goes TE→LE, we removed TE side)
+            xl_clip = np.insert(xl_clip, 0, hinge_x_mm)
+            yl_clip = np.insert(yl_clip, 0, y_hinge_l)
+
+    # Rebuild closed contour: upper(LE→hinge) + lower(hinge→LE)
+    x_out = np.concatenate([xu_clip, xl_clip])
+    y_out = np.concatenate([yu_clip, yl_clip])
+    return x_out, y_out
+
+
 def _spar_slot_rect(
     chord_mm: float,
     spar: SparConfig,
@@ -223,10 +295,11 @@ def _compute_lightening_holes(
         cx = (left_edge + right_edge) / 2.0
         rx = gap / 2.0 * 0.85  # 85% of available width
 
-        # Local airfoil thickness at centre of hole
+        # Skip holes in the TE region (x > 90% chord) — too thin
         x_frac = cx / chord_mm
-        if x_frac < 0.01 or x_frac > 0.99:
+        if x_frac < 0.01 or x_frac > 0.90:
             continue
+
         yu_at = float(np.interp(x_frac, x_n, yu_n)) * chord_mm
         yl_at = float(np.interp(x_frac, x_n, yl_n)) * chord_mm
         thickness = yu_at - yl_at
@@ -238,7 +311,82 @@ def _compute_lightening_holes(
 
         holes.append(LighteningHole(cx=cx, cy=cy, rx=rx, ry=ry))
 
+    # LE hole — between LE and the first spar (if enough room)
+    if sorted_slots:
+        le_right = sorted_slots[0].x0 - margin
+        le_left = margin * 2  # small offset from true LE
+        le_gap = le_right - le_left
+        if le_gap >= min_w:
+            cx_le = (le_left + le_right) / 2.0
+            rx_le = le_gap / 2.0 * 0.80
+            frac_le = cx_le / chord_mm
+            if 0.01 < frac_le < 0.99:
+                yu_le = float(np.interp(frac_le, x_n, yu_n)) * chord_mm
+                yl_le = float(np.interp(frac_le, x_n, yl_n)) * chord_mm
+                ry_le = (yu_le - yl_le) * h_frac / 2.0
+                if ry_le >= 2.0:
+                    holes.insert(0, LighteningHole(
+                        cx=cx_le, cy=(yu_le + yl_le) / 2.0, rx=rx_le, ry=ry_le))
+
     return holes
+
+
+def _compute_aileron_hole(
+    chord_mm: float,
+    foil_code: str,
+    hinge_x_mm: float,
+    build: WingBuildConfig,
+) -> LighteningHole | None:
+    """Compute a lightening hole in the aileron portion (hinge → TE stock)."""
+    margin = build.lightening_hole_margin_mm
+    # Find TE stock slot (rightmost spar)
+    sorted_spars = sorted(build.spars, key=lambda s: s.x_frac)
+    te_x = sorted_spars[-1].x_frac * chord_mm if sorted_spars else chord_mm * 0.97
+    te_slot_left = te_x - sorted_spars[-1].width_mm / 2 if sorted_spars else te_x
+
+    left_edge = hinge_x_mm + margin
+    right_edge = te_slot_left - margin
+    gap = right_edge - left_edge
+    if gap < build.lightening_hole_min_width_mm:
+        return None
+
+    cx = (left_edge + right_edge) / 2.0
+    rx = gap / 2.0 * 0.80
+    x_frac = cx / chord_mm
+    if x_frac < 0.01 or x_frac > 0.99:
+        return None
+
+    x_n, yu_n, yl_n = naca4(foil_code, n_points=200)
+    yu_at = float(np.interp(x_frac, x_n, yu_n)) * chord_mm
+    yl_at = float(np.interp(x_frac, x_n, yl_n)) * chord_mm
+    ry = (yu_at - yl_at) * build.lightening_hole_height_frac / 2.0
+    if ry < 1.5:
+        return None
+    return LighteningHole(cx=cx, cy=(yu_at + yl_at) / 2.0, rx=rx, ry=ry)
+
+
+def _compute_xbrace(
+    chord_mm: float,
+    foil_code: str,
+    hinge_x_mm: float,
+) -> XBrace:
+    """Create a >< cross-brace centred on the hinge line."""
+    x_n, yu_n, yl_n = naca4(foil_code, n_points=200)
+    hfrac = hinge_x_mm / chord_mm
+    yu_at = float(np.interp(hfrac, x_n, yu_n)) * chord_mm
+    yl_at = float(np.interp(hfrac, x_n, yl_n)) * chord_mm
+    thickness = yu_at - yl_at
+    cy = (yu_at + yl_at) / 2.0
+
+    half_w = thickness * 0.6  # brace arm half-width
+    return XBrace(
+        x_left=hinge_x_mm - half_w,
+        x_right=hinge_x_mm + half_w,
+        y_top=yu_at * 0.85,
+        y_bottom=yl_at * 0.85,
+        cx=hinge_x_mm,
+        cy=cy,
+    )
 
 
 def generate_wing_ribs(
@@ -271,7 +419,8 @@ def generate_wing_ribs(
         # Lightening holes between spars
         l_holes = _compute_lightening_holes(chord, foil, slots, build)
 
-        # Control surface check
+        # Control surface check — hinge is just a score mark for paper/
+        # shrink-tube hinge; rib stays full-chord (no clipping).
         has_cs = False
         hinge_x = 0.0
         for cs in build.control_surfaces:
@@ -279,6 +428,14 @@ def generate_wing_ribs(
             if cs.start_rib <= i <= end_rib:
                 has_cs = True
                 hinge_x = cs.hinge_x_frac * chord
+
+        # Aileron ribs: add >< X-brace at hinge + aileron lightening hole
+        xbrace = None
+        if has_cs and hinge_x > 0:
+            xbrace = _compute_xbrace(chord, foil, hinge_x)
+            ail_hole = _compute_aileron_hole(chord, foil, hinge_x, build)
+            if ail_hole is not None:
+                l_holes.append(ail_hole)
 
         ribs.append(RibProfile(
             index=i,
@@ -288,6 +445,7 @@ def generate_wing_ribs(
             y=y_prof,
             slots=slots,
             lightening_holes=l_holes,
+            xbrace=xbrace,
             has_control_surface=has_cs,
             hinge_x_mm=hinge_x,
             label=f"{prefix}{i}",

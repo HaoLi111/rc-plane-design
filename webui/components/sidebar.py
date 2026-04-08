@@ -20,6 +20,8 @@ NAV_ITEMS = [
     ("Stability", "/stability", "mdi:scale-balance", "stability"),
     ("Power & Weight", "/power", "mdi:battery-charging", "power"),
     ("Loads", "/loads", "mdi:chart-bell-curve-cumulative", "loads"),
+    ("WORKFLOW", None, None, None),
+    ("Workbench", "/workbench", "mdi:function-variant", "workbench"),
     ("OUTPUT", None, None, None),
     ("Manufacturing", "/manufacturing", "mdi:printer-3d-nozzle-outline", "manufacturing"),
     ("Export", "/export", "mdi:download-outline", "export"),

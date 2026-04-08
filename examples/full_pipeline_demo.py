@@ -149,6 +149,12 @@ def step_rib_gallery(parts):
     fig, axes = plt.subplots(rows, cols, figsize=(3.5 * cols, 3 * rows))
     axes_flat = np.array(axes).flatten() if n > 1 else [axes]
 
+    # Compute global bounding box so ribs display at true relative size
+    all_x = np.concatenate([r.x for r in parts.wing_ribs])
+    all_y = np.concatenate([r.y for r in parts.wing_ribs])
+    x_lo, x_hi = float(np.min(all_x)) - 5, float(np.max(all_x)) + 5
+    y_lo, y_hi = float(np.min(all_y)) - 5, float(np.max(all_y)) + 5
+
     for i, rib in enumerate(parts.wing_ribs):
         ax = axes_flat[i]
         ax.plot(rib.x, rib.y, "C0", lw=1.2)
@@ -162,10 +168,27 @@ def step_rib_gallery(parts):
             ax.fill(rect_x, rect_y, color=color, alpha=0.5)
             ax.plot(rect_x, rect_y, color=color, lw=0.6)
 
+        # Lightening holes
+        for hole in rib.lightening_holes:
+            t = np.linspace(0, 2 * np.pi, 60)
+            hx = hole.cx + hole.rx * np.cos(t)
+            hy = hole.cy + hole.ry * np.sin(t)
+            ax.fill(hx, hy, color="white", ec="#888888", lw=0.5)
+
+        # >< X-brace at hinge
+        if rib.xbrace is not None:
+            xb = rib.xbrace
+            # Draw >< shape: left tip → top → right tip → bottom → left tip
+            bx = [xb.x_left, xb.cx, xb.x_right, xb.cx, xb.x_left]
+            by = [xb.cy,     xb.y_top, xb.cy, xb.y_bottom, xb.cy]
+            ax.fill(bx, by, color="#40b040", alpha=0.35, ec="#208020", lw=0.8)
+
         # Hinge line
         if rib.has_control_surface:
             ax.axvline(rib.hinge_x_mm, color="green", ls="--", lw=1.0, alpha=0.8)
 
+        ax.set_xlim(x_lo, x_hi)
+        ax.set_ylim(y_lo, y_hi)
         ax.set_aspect("equal")
         ax.set_title(f"{rib.label}  ({rib.chord_mm:.0f} mm)", fontsize=8)
         ax.tick_params(labelsize=6)

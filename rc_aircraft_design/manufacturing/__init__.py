@@ -4,5 +4,5 @@ from .config import ManufacturingConfig, WingBuildConfig, FuselageBuildConfig, C
 from .parts import (
     generate_wing_ribs, generate_fuselage_formers, generate_all_parts,
     ManufacturingParts, RibProfile, FormerProfile, SlotRect,
-    LighteningHole, FuselageSidePanel, Firewall, Doubler,
+    LighteningHole, XBrace, FuselageSidePanel, Firewall, Doubler,
 )

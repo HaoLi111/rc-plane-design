@@ -7,7 +7,6 @@
 | Python          | >= 3.11  | 3.12 recommended                 |
 | uv              | latest   | Package manager (auto-installed) |
 | gfortran / gcc  | any      | Only for `aero` extra (xfoil)    |
-| OpenVSP         | >= 3.41  | Optional, separate install       |
 
 ## Quick Install
 
@@ -17,11 +16,14 @@
 # Core only
 .\install.ps1
 
-# All extras (aero simulation, 3D viz, CAD, dev tools)
+# All extras (aero simulation, 3D viz, CAD, web UI, dev tools)
 .\install.ps1 -Extras all
 
 # Just aero extras (xfoil + aerosandbox)
 .\install.ps1 -Extras aero
+
+# Web UI only
+.\install.ps1 -Extras webui
 ```
 
 ### Linux / macOS (Bash)
@@ -37,6 +39,9 @@ chmod +x install.sh
 
 # Just aero extras
 ./install.sh aero
+
+# Web UI only
+./install.sh webui
 ```
 
 ### Manual Install (uv)
@@ -46,7 +51,8 @@ chmod +x install.sh
 uv sync
 
 # With specific extras
-uv sync --extra aero       # xfoil + aerosandbox
+uv sync --extra aero       # xfoil + aerosandbox + neuralfoil
+uv sync --extra webui      # Dash web UI (plotly, dash, pandas)
 uv sync --extra viz        # OpenGL visualization
 uv sync --extra cad        # DXF/CAD export
 uv sync --extra dev        # pytest + ruff
@@ -57,7 +63,8 @@ uv sync --extra all        # everything
 
 ```bash
 pip install -e .             # core
-pip install -e ".[aero]"     # + xfoil & aerosandbox
+pip install -e ".[aero]"     # + xfoil, aerosandbox, neuralfoil
+pip install -e ".[webui]"    # + Dash web UI
 pip install -e ".[all]"      # everything
 ```
 
@@ -70,12 +77,57 @@ Defined in `pyproject.toml` under `[project.optional-dependencies]`:
 | Extra   | Packages                                     | Purpose                          |
 |---------|----------------------------------------------|----------------------------------|
 | (core)  | numpy, scipy, matplotlib                     | Base numerics and plotting       |
-| `aero`  | xfoil, aerosandbox                           | XFoil 2D polars, VLM 3D aero    |
+| `aero`  | xfoil, aerosandbox, neuralfoil               | XFoil 2D polars, VLM 3D aero, PINN airfoil |
+| `webui` | dash, dash-bootstrap-components, dash-iconify, plotly, pandas | Interactive web dashboard |
 | `viz`   | PyOpenGL, PyOpenGL-accelerate, glfw           | 3D OpenGL visualization          |
 | `cad`   | ezdxf                                        | DXF file export                  |
 | `julia` | juliacall                                    | Julia interop for heavy numerics |
 | `dev`   | pytest, ruff                                 | Testing and linting              |
 | `all`   | all of the above                             |                                  |
+
+---
+
+## Web UI (Dash)
+
+The web UI has its own project in `webui/` with a separate `pyproject.toml`.
+It installs the core `rc-aircraft-design` package automatically.
+
+### Quick start
+
+```bash
+cd webui
+uv sync                # creates .venv, installs dash + core package
+uv run python app.py   # http://127.0.0.1:8050
+```
+
+### Manual setup
+
+```bash
+cd webui
+uv venv --python 3.11
+uv pip install -e ".."                     # core package (editable)
+uv pip install dash dash-bootstrap-components dash-iconify plotly pandas
+python app.py
+```
+
+### What the UI provides
+
+| Page | Description |
+|------|-------------|
+| **Dashboard** | Preset aircraft cards, one-click design |
+| **Configuration** | Mission & airfoil parameter editor, triggers design pipeline |
+| **Aerodynamics** | Standalone: Cl/Cd polars, speed–lift contour, V-n diagram, climb analysis |
+| **Constraints** | Interactive T/W vs W/S diagram |
+| **Geometry** | Top + side planform views, MAC tables |
+| **Stability** | Gauge charts for Vh, Vv, static margin, spiral stability |
+| **Power** | Sankey power-flow diagram, battery/motor sizing |
+| **Loads** | Spanwise lift, shear, bending distributions |
+| **Workbench** | Run any stage standalone — pick a stage, edit JSON, execute, export |
+| **Manufacturing** | Rib schedule, airfoil preview |
+| **Export** | Download JSON / DXF / text report |
+
+Every analysis stage is also a standalone JSON→JSON function — import/export
+at any boundary (replaces the `.RData` workflow from the R legacy tools).
 
 ---
 
@@ -112,33 +164,6 @@ sudo dnf install gcc-gfortran gcc
 ```bash
 brew install gcc
 ```
-
-### OpenVSP + VSPAERO
-
-OpenVSP is **not** pip-installable. Install it separately:
-
-1. Download from <https://openvsp.org/download.php> (v3.49+ recommended).
-2. Install the application.
-3. Add the OpenVSP Python API to your environment:
-
-   **Windows:**
-   ```powershell
-   $env:PYTHONPATH = "C:\path\to\OpenVSP\python;$env:PYTHONPATH"
-   ```
-
-   **Linux / macOS:**
-   ```bash
-   export PYTHONPATH="/path/to/OpenVSP/python:$PYTHONPATH"
-   ```
-
-4. Verify:
-   ```python
-   import openvsp
-   print(openvsp.GetVSPVersion())
-   ```
-
-The `vspaero` solver binary ships with the OpenVSP installation and is called
-by our `aero.vspaero` module via subprocess.
 
 ### AeroSandbox
 

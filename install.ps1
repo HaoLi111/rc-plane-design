@@ -2,11 +2,12 @@
 .SYNOPSIS
     Sets up the rc-aircraft-design Python environment on Windows.
 .PARAMETER Extras
-    Optional dependency group(s): core (default), aero, viz, cad, julia, dev, all.
+    Optional dependency group(s): core (default), aero, viz, cad, julia, webui, dev, all.
 .EXAMPLE
     .\install.ps1              # core only
     .\install.ps1 -Extras all  # everything
     .\install.ps1 -Extras aero # aero simulation extras
+    .\install.ps1 -Extras webui # web UI (Dash) only
 #>
 [CmdletBinding()]
 param(
@@ -65,18 +66,6 @@ function Test-Fortran {
     }
 }
 
-# ── OpenVSP check ────────────────────────────────────────────────────────
-function Test-OpenVSP {
-    $result = & $py -c "import openvsp; print('ok')" 2>&1
-    if ($result -eq "ok") {
-        Write-Info "OpenVSP Python API detected."
-    } else {
-        Write-Warn "OpenVSP Python API not found."
-        Write-Warn "  Download from: https://openvsp.org/download.php"
-        Write-Warn "  After installing, add its Python directory to PYTHONPATH."
-    }
-}
-
 # ── Install ──────────────────────────────────────────────────────────────
 Set-Location $ScriptDir
 Test-Fortran
@@ -106,12 +95,20 @@ try:
 except ImportError:
     print('  MISSING aerosandbox')
 "@
-    Test-OpenVSP
 }
 
 if ($Extras -match "dev|all") {
     Write-Info "Running quick test suite..."
     uv run pytest --tb=short -q
+}
+
+# ── Web UI environment (separate venv in webui/) ────────────────────────
+if ($Extras -match "webui|all") {
+    Write-Info "Setting up Web UI environment (webui/)..."
+    Push-Location (Join-Path $ScriptDir "webui")
+    uv sync
+    Write-Info "Web UI installed. Start with:  cd webui; uv run python app.py"
+    Pop-Location
 }
 
 Write-Info "Done."

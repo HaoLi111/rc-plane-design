@@ -12,6 +12,51 @@ Mission assumptions ─→ Aerodynamics ─→ Constraint sizing ─→ 3D aircr
 
 Available as a **Python library** (use any module standalone) and as a **web GUI** (interactive dashboard for the full workflow). Integrates PINN-based airfoil analysis (NeuralFoil), vortex-lattice methods (AeroSandbox), and classical panel codes (XFoil).
 
+## Web UI — no code required
+
+The fastest way to use this project: a full interactive dashboard that runs in your browser. No Python knowledge needed — load a preset, tweak parameters, click **Run**, explore interactive charts, and export results as JSON, DXF, or HTML.
+
+```bash
+cd webui && uv sync && uv run python app.py   # → http://127.0.0.1:8050
+```
+
+<!-- Screenshots: replace these comments with actual screenshots once available -->
+<!-- ![Dashboard](docs/screenshots/webui_dashboard.png) -->
+<!-- ![Aerodynamics — speed–lift contour](docs/screenshots/webui_aero_speed_lift.png) -->
+
+| Page | What you get |
+|------|-------------|
+| **Dashboard** | Pick a preset aircraft, one-click design pipeline |
+| **Configuration** | Edit mission & airfoil params, run full pipeline |
+| **Aerodynamics** | Cl/Cd polars, speed–lift contour, V-n diagram, climb curves — all standalone |
+| **Constraints** | Interactive T/W vs W/S envelope with optimum point |
+| **Geometry** | 3D Plotly aircraft view + 2D planforms, CG/NP markers, MAC tables — export to HTML |
+| **Stability** | Gauge charts for Vh, Vv, static margin, spiral stability |
+| **Power** | Sankey power-flow diagram, battery/motor/propeller sizing |
+| **Loads** | Spanwise lift, shear, bending distributions |
+| **Workbench** | Run any stage standalone — paste JSON in, get JSON + chart out (replaces `.RData`) |
+| **Manufacturing** | Rib schedule, airfoil profiles |
+| **Export** | Download JSON config, DXF planforms, text report, or interactive 3D HTML |
+
+> Every analysis stage is a pure **JSON → JSON function**. Import and export at any boundary — no proprietary formats, no lock-in.
+
+## Python library — for developers
+
+Use any module standalone in your own scripts or Jupyter notebooks:
+
+```python
+from rc_aircraft_design.passive import run_passive_design
+from rc_aircraft_design.aero import LinearAirfoil, naca4
+from rc_aircraft_design.wing import Wing, compute_mac
+from rc_aircraft_design.stability import analyze_stability
+```
+
+```bash
+pip install -e .     # or: uv sync
+```
+
+See the [Quickstart](#quickstart) section below for full examples.
+
 ## Gallery
 
 #### 3D aircraft visualization
@@ -67,29 +112,6 @@ Available as a **Python library** (use any module standalone) and as a **web GUI
 ```bash
 pip install -e .           # or: uv sync
 ```
-
-### Web GUI
-
-```bash
-cd webui
-uv sync                           # install webui deps + parent package
-python app.py                     # opens at http://127.0.0.1:8050
-```
-
-The web UI is a Dash application with interactive pages for every analysis step:
-
-| Page | Description |
-|------|-------------|
-| **Home** | Dashboard with preset aircraft, one-click design |
-| **Config** | Mission & airfoil parameter form, triggers passive design pipeline |
-| **Aero** | Cl/Cd/L-D polars, drag polar, key metrics table |
-| **Geometry** | 2D planform top + side views, CG/NP markers, MAC tables |
-| **Constraints** | Interactive T/W vs W/S diagram with design point |
-| **Stability** | Gauge charts for Vh, Vv, static margin, spiral stability |
-| **Power** | Sankey power-flow diagram, battery/motor/propeller sizing |
-| **Loads** | Spanwise lift, shear, and bending moment distributions |
-| **Manufacturing** | Rib schedule preview, airfoil profile view |
-| **Export** | Download JSON config, DXF planforms, or text report |
 
 ### Design an aircraft from mission assumptions
 
@@ -161,7 +183,7 @@ print(f"MAC = {compute_mac(w).mac_length:.3f} m, AR = {w.aspect_ratio:.1f}")
 | `viz` | 3D visualization, mesh generation |
 | `cad` | DXF R12 export (planforms, airfoils, layered part sheets) |
 | `utils` | ISA atmosphere, Reynolds, trig helpers, interpolation |
-| `webui` | Dash-based web GUI — interactive dashboard for the full workflow |
+| `webui/` | Dash web GUI — interactive dashboard, workbench (JSON stage runner) |
 
 ## Passive Design Pipeline
 

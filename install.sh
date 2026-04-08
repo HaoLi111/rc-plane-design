@@ -2,8 +2,9 @@
 # install.sh — Install rc-aircraft-design on Linux / macOS
 # Usage:
 #   ./install.sh           # core only
-#   ./install.sh all       # all optional deps (viz, cad, julia, aero, dev)
+#   ./install.sh all       # all optional deps (viz, cad, julia, aero, webui, dev)
 #   ./install.sh aero      # just the aero simulation extras
+#   ./install.sh webui     # just the web UI (Dash)
 set -euo pipefail
 
 EXTRAS="${1:-}"
@@ -84,17 +85,6 @@ if [[ "$EXTRAS" == *"aero"* ]] || [[ "$EXTRAS" == "all" ]]; then
     esac
 fi
 
-# ── OpenVSP (optional, not pip-installable) ──────────────────────────────
-check_openvsp() {
-    if $PY -c "import openvsp" 2>/dev/null; then
-        info "OpenVSP Python API detected."
-    else
-        warn "OpenVSP Python API not found."
-        warn "  Download from: https://openvsp.org/download.php"
-        warn "  After installing, add its Python directory to PYTHONPATH."
-    fi
-}
-
 # ── Create venv & install ────────────────────────────────────────────────
 cd "$SCRIPT_DIR"
 
@@ -123,12 +113,20 @@ try:
 except ImportError:
     print('  ✗ aerosandbox')
 "
-    check_openvsp
 fi
 
 if [[ "$EXTRAS" == *"dev"* ]] || [[ "$EXTRAS" == "all" ]]; then
     info "Running quick test suite..."
     uv run pytest --tb=short -q || warn "Some tests failed."
+fi
+
+# ── Web UI environment (separate venv in webui/) ────────────────────────
+if [[ "$EXTRAS" == *"webui"* ]] || [[ "$EXTRAS" == "all" ]]; then
+    info "Setting up Web UI environment (webui/)..."
+    cd "$SCRIPT_DIR/webui"
+    uv sync
+    info "Web UI installed. Start with:  cd webui && uv run python app.py"
+    cd "$SCRIPT_DIR"
 fi
 
 info "Done."

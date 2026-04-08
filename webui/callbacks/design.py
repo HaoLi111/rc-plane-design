@@ -180,12 +180,12 @@ def register_callbacks(app: dash.Dash):
     nav_ids = [
         "nav-dashboard", "nav-config", "nav-aero", "nav-constraints",
         "nav-geometry", "nav-stability", "nav-power", "nav-loads",
-        "nav-manufacturing", "nav-export",
+        "nav-workbench", "nav-manufacturing", "nav-export",
     ]
     nav_paths = [
         "/", "/config", "/aero", "/constraints",
         "/geometry", "/stability", "/power", "/loads",
-        "/manufacturing", "/export",
+        "/workbench", "/manufacturing", "/export",
     ]
 
     @app.callback(
@@ -262,6 +262,8 @@ def _serialize_result(result, naca_code, batt_ah, cruise_v):
         },
         "Cd_min": float(result.Cd_min),
         "k": float(result.k),
+        "Cla": float(cla),
+        "alpha0_deg": float(alpha0),
         "LDmax": float(aero.LDmax),
 
         # Constraints
