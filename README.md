@@ -1,5 +1,7 @@
 # RC Aircraft Design & Manufacturing Software
 
+HERE for a lite demo without installation: https://rc-plane-design.onrender.com/geometry 
+
 **One pipeline: mission requirements in → laser-cut parts out.**
 
 This is not just an aero textbook translated to Python. It is a full **design → simulate → manufacture** workflow that takes a handful of mission assumptions (payload, speed, endurance…) and produces a complete, physically buildable RC aircraft — 3D visualization, structural analysis, and every laser-cutter-ready rib, former, fuselage side, and spar template — with no manual CAD in between.
