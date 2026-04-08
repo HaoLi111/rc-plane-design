@@ -1,13 +1,37 @@
 # RC Aircraft Design & Manufacturing Software
 
-Python toolkit for designing, analyzing, and manufacturing fixed-wing RC aircraft — from airfoil polars to laser-cutter DXF files.
+**One pipeline: mission requirements in → laser-cut parts out.**
 
-Use each module standalone as a library, or run the passive pipeline to generate a complete aircraft from ~10 mission assumptions.
+This is not just an aero textbook translated to Python. It is a full **design → simulate → manufacture** workflow that takes a handful of mission assumptions (payload, speed, endurance…) and produces a complete, physically buildable RC aircraft — 3D visualization, structural analysis, and every laser-cutter-ready rib, former, fuselage side, and spar template — with no manual CAD in between.
+
+```
+Mission assumptions ─→ Aerodynamics ─→ Constraint sizing ─→ 3D aircraft model
+    ─→ Stability & loads ─→ Manufacturing parts (ribs, formers, skins)
+        ─→ DXF export ─→ DeepNest sheet nesting ─→ Laser cut ─→ Build
+```
+
+Available as a **Python library** (use any module standalone) and as a **web GUI** (interactive dashboard for the full workflow). Integrates PINN-based airfoil analysis (NeuralFoil), vortex-lattice methods (AeroSandbox), and classical panel codes (XFoil).
 
 ## Gallery
 
-#### Six missions → six different aircraft, generated automatically
-![Passive design mission comparison — 6 aircraft silhouettes](results/examples/passive_comparison.png)
+#### 3D aircraft visualization
+| Perspective | Top | Side | Front |
+|:-----------:|:---:|:----:|:-----:|
+| ![3D perspective](results/examples/sport_flyer_3d_perspective.png) | ![Top view](results/examples/sport_flyer_3d_top.png) | ![Side view](results/examples/sport_flyer_3d_side.png) | ![Front view](results/examples/sport_flyer_3d_front.png) |
+
+#### Manufacturing parts — wing ribs with spar slots, longerons, and aileron hinge cuts
+![Wing rib gallery](results/examples/sport_flyer_rib_gallery.png)
+
+#### Manufacturing parts — fuselage formers at each station
+![Fuselage formers](results/examples/sport_flyer_formers.png)
+
+#### What we're building toward — complete laser-cut part sheets from a single design
+> Real RC aircraft plans like this one contain dozens of interlocking ribs, formers, fuselage sides, doublers, and spar webs — all generated from the same geometry and exported to DXF for nesting and cutting. This is the end goal of the manufacturing pipeline.
+
+![Reference: complete laser-cut RC aircraft plan](docs/reference_laser_cut_plan.png)
+
+#### Six missions → six different aircraft, sized automatically
+![Passive design mission comparison](results/examples/passive_comparison.png)
 
 #### Three-view planforms with design parameters
 | Sport Flyer | 3D Aerobat | Aerial Survey |
@@ -44,9 +68,30 @@ Use each module standalone as a library, or run the passive pipeline to generate
 pip install -e .           # or: uv sync
 ```
 
-### Design an aircraft from mission assumptions
+### Web GUI
 
-Define what you need the plane to do; the pipeline sizes everything:
+```bash
+cd webui
+uv sync                           # install webui deps + parent package
+python app.py                     # opens at http://127.0.0.1:8050
+```
+
+The web UI is a Dash application with interactive pages for every analysis step:
+
+| Page | Description |
+|------|-------------|
+| **Home** | Dashboard with preset aircraft, one-click design |
+| **Config** | Mission & airfoil parameter form, triggers passive design pipeline |
+| **Aero** | Cl/Cd/L-D polars, drag polar, key metrics table |
+| **Geometry** | 2D planform top + side views, CG/NP markers, MAC tables |
+| **Constraints** | Interactive T/W vs W/S diagram with design point |
+| **Stability** | Gauge charts for Vh, Vv, static margin, spiral stability |
+| **Power** | Sankey power-flow diagram, battery/motor/propeller sizing |
+| **Loads** | Spanwise lift, shear, and bending moment distributions |
+| **Manufacturing** | Rib schedule preview, airfoil profile view |
+| **Export** | Download JSON config, DXF planforms, or text report |
+
+### Design an aircraft from mission assumptions
 
 ```python
 import json
@@ -55,15 +100,12 @@ from rc_aircraft_design.passive import run_passive_design
 data = json.load(open("data/examples/missions/aerial_survey.json"))
 result = run_passive_design(data["assumptions"], data["airfoil"])
 
-concept = result.concept
-print(f"Wing span:  {concept.wing_main.span*100:.0f} cm")
+print(f"Wing span:  {result.concept.wing_main.span*100:.0f} cm")
 print(f"Gross mass: {result.m_gross_kg:.2f} kg")
 print(f"T/W:        {result.TW_opt:.3f}")
 ```
 
 ### Analyze an existing aircraft
-
-Load a plane definition (or build `Wing` objects directly) and call whichever modules you need:
 
 ```python
 import json
@@ -73,17 +115,12 @@ from rc_aircraft_design.stability import analyze_stability
 
 data = json.load(open("data/examples/sport_trainer_40.json"))
 
-# Aero
 af = data["airfoil"]
 result = LinearAirfoil(Cla=af["Cla"], alpha0_deg=af["alpha0_deg"],
                        Cd0=af["Cd0"], Cdi_factor=af["Cdi_factor"]).analyze()
 print(f"L/D max = {result.LDmax:.1f}")
 
-# Wing geometry
 wm = Wing(**data["wing_main"])
-print(f"MAC = {compute_mac(wm).mac_length:.3f} m, AR = {wm.aspect_ratio:.1f}")
-
-# Stability
 concept = ConventionalConcept(
     wing_main=wm,
     wing_horiz=Wing(**data["wing_horiz"]),
@@ -96,7 +133,7 @@ stab = analyze_stability(concept, X_cg=data["cg_x"])
 print(f"Static margin = {stab.static_margin:.3f}")
 ```
 
-### Use individual modules with no JSON
+### Use individual modules directly
 
 ```python
 from rc_aircraft_design.aero import naca4
@@ -119,10 +156,12 @@ print(f"MAC = {compute_mac(w).mac_length:.3f} m, AR = {w.aspect_ratio:.1f}")
 | `constraints` | T/W vs W/S constraint diagrams, feasibility envelope |
 | `power` | Motor, propeller, battery sizing, rubber power models |
 | `passive` | Full aircraft from ~10 assumptions — no manual geometry |
+| `manufacturing` | Wing ribs, fuselage formers, spar webs — laser-cutter-ready parts |
 | `expand` | 3D surface unfolding → 2D cutting templates |
-| `viz` | OpenGL 3D visualization, mesh generation |
-| `cad` | DXF R12 export (planforms, airfoils, layered templates) |
+| `viz` | 3D visualization, mesh generation |
+| `cad` | DXF R12 export (planforms, airfoils, layered part sheets) |
 | `utils` | ISA atmosphere, Reynolds, trig helpers, interpolation |
+| `webui` | Dash-based web GUI — interactive dashboard for the full workflow |
 
 ## Passive Design Pipeline
 
@@ -167,9 +206,43 @@ Six mission profiles are included:
 | Park Flyer | [`park_flyer.json`](data/examples/missions/park_flyer.json) | 0.05 kg | 8 m/s | Micro, beginner-friendly |
 | Thermal Soarer | [`thermal_soarer.json`](data/examples/missions/thermal_soarer.json) | 0.02 kg | 8 m/s | No motor, high L/D |
 
+## Manufacturing Pipeline
+
+The manufacturing module generates every structural part needed to physically build the aircraft from flat sheet stock (balsa, plywood, foam board). From a single `ConventionalConcept` + manufacturing config, it produces:
+
+- **Wing ribs** — airfoil-profile cutouts with spar slots, longeron notches, leading/trailing-edge rabbets, and aileron hinge cuts (configurable: which rib the aileron starts, spar count/position, lightening holes)
+- **Fuselage formers** — cross-section profiles at each station with stringer notches and equipment mounting holes
+- **Fuselage sides / doublers** — flat panels with cutouts for servos, battery trays, landing gear mounting
+- **Spar webs** — shear webs sized from the loads analysis
+- **Tail ribs & formers** — horizontal/vertical stabilizer internal structure
+
+All parts export to **DXF R12** with part labels, then feed into [**DeepNest**](https://github.com/nicholasnelson/deepnest) (open-source nesting optimizer) for optimal sheet layout before laser cutting / CNC routing:
+
+```
+ConventionalConcept + ManufacturingConfig
+    → generate_parts()  → RibProfile[], FormerProfile[], ...
+    → export_dxf()      → layered DXF per part family
+    → DeepNest          → nested sheet layouts → laser cutter
+```
+
+```python
+from rc_aircraft_design.manufacturing import ManufacturingConfig, generate_all_parts, SparConfig
+from rc_aircraft_design.manufacturing.export_dxf import export_parts_dxf
+
+config = ManufacturingConfig()  # sensible defaults: 12 wing ribs, 6 spars per rib
+
+# Default spars per rib: LE rod, front spar, upper longeron,
+# lower longeron, rear spar, TE stock — all configurable:
+config.wing.spars[1] = SparConfig("front_spar", x_frac=0.30, width_mm=6.0, height_mm=3.0)
+
+parts = generate_all_parts(concept, config)
+export_parts_dxf(parts, "sport_flyer_laser_parts.dxf")
+# → open in DeepNest for sheet nesting, then cut
+```
+
 ### DXF / CAD Export
 
-Every design can be exported to DXF R12 with layered planforms (WING_MAIN, H_TAIL, V_TAIL) and airfoil profiles — ready for any CAD program or laser cutter:
+Every design (not just manufacturing parts) can be exported to DXF R12 with layered planforms (WING, H_TAIL, V_TAIL) and airfoil profiles:
 
 ```python
 from rc_aircraft_design.cad import DxfWriter
@@ -204,9 +277,11 @@ These work with every analysis module and are integration-tested in [`tests/test
 | [`test_neuralfoil.py`](examples/test_neuralfoil.py) | NeuralFoil (PINN) CL/CD/CM polars for 4 NACA foils at Re=200k |
 | [`passive_design_from_assumptions.py`](examples/passive_design_from_assumptions.py) | Full aircraft from mission assumptions (single mission) |
 | [`passive_design_gallery.py`](examples/passive_design_gallery.py) | Three-views, constraint diagrams, and comparison for all 6 missions |
+| [`full_pipeline_demo.py`](examples/full_pipeline_demo.py) | Design → 3D viz → manufacturing parts → DXF laser-cut export |
 
 ```bash
 python examples/passive_design_gallery.py   # generates all plots + DXF in results/examples/
+python examples/full_pipeline_demo.py        # full pipeline: 3D views, ribs, formers, DXF
 python examples/smoke_test_loads.py
 ```
 
@@ -232,6 +307,8 @@ uv run pytest tests/test_aero.py -v   # single module
 | `test_example_planes.py` | End-to-end workflow for each aircraft JSON (3 planes) |
 | `test_passive_design.py` | Passive pipeline across 6 missions |
 
+342 tests pass, 1 skipped (OpenGL renderer on headless CI).
+
 ## Setup
 
 ```bash
@@ -240,15 +317,23 @@ uv sync --extra dev        # install dev deps (pytest, ruff)
 uv sync --extra all        # install everything
 ```
 
-## Integrations & External Tools
+## Integrations
 
-### Python Dependencies (`uv sync --extra aero`)
+This project connects the full design-to-manufacturing chain by integrating specialized open-source tools at each stage:
 
-| Package | Purpose | Link |
-|---------|---------|------|
-| **AeroSandbox** | VLM aerodynamics, optimization, propulsion models | [peterdsharpe/AeroSandbox](https://github.com/peterdsharpe/AeroSandbox) |
-| **NeuralFoil** | ML-based XFoil replacement (~1000× faster) | [peterdsharpe/NeuralFoil](https://github.com/peterdsharpe/NeuralFoil) |
-| **XFoil** (Python wrapper) | Classical 2-D viscous airfoil analysis | [xfoil](https://pypi.org/project/xfoil/) |
+### Aerodynamics & Optimization (`uv sync --extra aero`)
+
+| Package | Role in pipeline | Link |
+|---------|-----------------|------|
+| **NeuralFoil** | PINN-based airfoil analysis — ~1000× faster than XFoil, no Fortran binary, differentiable for optimization | [peterdsharpe/NeuralFoil](https://github.com/peterdsharpe/NeuralFoil) |
+| **AeroSandbox** | VLM aerodynamics, ML-based surrogate models, gradient-based design optimization | [peterdsharpe/AeroSandbox](https://github.com/peterdsharpe/AeroSandbox) |
+| **XFoil** (Python wrapper) | Classical 2-D viscous panel code for validation and high-fidelity polars | [xfoil](https://pypi.org/project/xfoil/) |
+
+### Manufacturing & Nesting
+
+| Tool | Role in pipeline | Link |
+|------|-----------------|------|
+| **DeepNest** | Sheet nesting optimization for laser-cut parts — takes DXF from this tool, minimizes material waste | [deepnest](https://github.com/nicholasnelson/deepnest) |
 
 ### Git Submodules (`legacy/`)
 
