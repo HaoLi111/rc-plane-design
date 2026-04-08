@@ -175,14 +175,6 @@ def step_rib_gallery(parts):
             hy = hole.cy + hole.ry * np.sin(t)
             ax.fill(hx, hy, color="white", ec="#888888", lw=0.5)
 
-        # >< X-brace at hinge
-        if rib.xbrace is not None:
-            xb = rib.xbrace
-            # Draw >< shape: left tip → top → right tip → bottom → left tip
-            bx = [xb.x_left, xb.cx, xb.x_right, xb.cx, xb.x_left]
-            by = [xb.cy,     xb.y_top, xb.cy, xb.y_bottom, xb.cy]
-            ax.fill(bx, by, color="#40b040", alpha=0.35, ec="#208020", lw=0.8)
-
         # Hinge line
         if rib.has_control_surface:
             ax.axvline(rib.hinge_x_mm, color="green", ls="--", lw=1.0, alpha=0.8)

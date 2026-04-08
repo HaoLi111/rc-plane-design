@@ -65,7 +65,6 @@ class RibProfile:
     y: np.ndarray            # airfoil y coords [mm] (closed loop)
     slots: list[SlotRect]    # all spar/rod/longeron slots
     lightening_holes: list[LighteningHole] = field(default_factory=list)
-    xbrace: XBrace | None = None  # >< brace at aileron hinge
     has_control_surface: bool = False
     hinge_x_mm: float = 0.0  # hinge cut position from LE [mm]
     label: str = ""
@@ -429,10 +428,8 @@ def generate_wing_ribs(
                 has_cs = True
                 hinge_x = cs.hinge_x_frac * chord
 
-        # Aileron ribs: add >< X-brace at hinge + aileron lightening hole
-        xbrace = None
+        # Aileron ribs: add aileron lightening hole
         if has_cs and hinge_x > 0:
-            xbrace = _compute_xbrace(chord, foil, hinge_x)
             ail_hole = _compute_aileron_hole(chord, foil, hinge_x, build)
             if ail_hole is not None:
                 l_holes.append(ail_hole)
@@ -445,7 +442,6 @@ def generate_wing_ribs(
             y=y_prof,
             slots=slots,
             lightening_holes=l_holes,
-            xbrace=xbrace,
             has_control_surface=has_cs,
             hinge_x_mm=hinge_x,
             label=f"{prefix}{i}",
