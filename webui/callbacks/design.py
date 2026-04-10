@@ -361,6 +361,12 @@ def _serialize_result(result, naca_code, cla, alpha0, batt_ah, cruise_v):
             "fuselage_length": float(concept.fuselage_length),
             "fuselage_stations": [float(x) for x in concept.fuselage_stations] if concept.fuselage_stations else None,
             "fuselage_radii": [float(x) for x in concept.fuselage_radii] if concept.fuselage_radii else None,
+            "fuselage_type": getattr(concept, "fuselage_type", "round"),
+            "fuselage_width": getattr(concept, "fuselage_width", None),
+            "fuselage_height": getattr(concept, "fuselage_height", None),
+            "fuselage_profile_x": [float(x) for x in concept.fuselage_profile_x] if getattr(concept, "fuselage_profile_x", None) else None,
+            "fuselage_profile_z": [float(x) for x in concept.fuselage_profile_z] if getattr(concept, "fuselage_profile_z", None) else None,
+            "fuselage_profile_thickness": getattr(concept, "fuselage_profile_thickness", 0.006),
         },
 
         # MAC

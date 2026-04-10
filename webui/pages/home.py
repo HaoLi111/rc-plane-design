@@ -19,6 +19,8 @@ PRESETS = [
     ("sport_trainer_40.json", "Sport Trainer .40", "Classic .40-size trainer with gentle handling", "mdi:school-outline"),
     ("classic_2m_glider.json", "2m Glider", "Hand-launch glider, 2m wingspan, no motor", "mdi:weather-windy"),
     ("extra_330sc_3d.json", "Extra 330SC 3D", "High-performance aerobatic pattern plane", "mdi:rotate-3d-variant"),
+    ("edge540_box_aerobat.json", "Edge 540 Box Aerobat", "Box fuselage 3D aerobat with ply formers & longerons", "mdi:cube-outline"),
+    ("yak55_profile_aerobat.json", "Yak 55 Profile", "Profile fuselage aerobat — single-sheet foam/depron build", "mdi:card-outline"),
 ]
 
 
