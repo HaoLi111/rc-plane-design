@@ -10,7 +10,10 @@ from pathlib import Path
 import numpy as np
 
 from ..cad.dxf_writer import DxfWriter
-from .parts import ManufacturingParts, RibProfile, FormerProfile, SlotRect
+from .parts import (
+    ManufacturingParts, RibProfile, FormerProfile, ProfileFuselagePanel,
+    SlotRect, LighteningHole,
+)
 
 
 def _add_rib_to_dxf(
@@ -60,13 +63,62 @@ def _add_former_to_dxf(
     pts = np.column_stack([former.x + offset_x, former.y + offset_y])
     dxf.polyline(pts, closed=True, layer=layer)
 
-    # Longeron holes
+    # Longeron holes (round formers)
     for lx, ly in former.longeron_holes:
         dxf.circle(lx + offset_x, ly + offset_y, 2.0, layer=layer + "_HOLES")
+
+    # Bar slots (box formers) — rectangular cutouts for longerons/cross-bars
+    for slot in former.bar_slots:
+        slot_pts = np.array([
+            [slot.x0 + offset_x, slot.y0 + offset_y],
+            [slot.x1 + offset_x, slot.y0 + offset_y],
+            [slot.x1 + offset_x, slot.y1 + offset_y],
+            [slot.x0 + offset_x, slot.y1 + offset_y],
+        ])
+        dxf.polyline(slot_pts, closed=True, layer=layer + "_SLOTS")
 
     # Label
     dxf.text(offset_x - former.width_mm / 2, offset_y - former.height_mm / 2 - 5,
              former.label, height=3.0, layer=layer + "_LABEL")
+
+
+def _add_profile_panel_to_dxf(
+    dxf: DxfWriter,
+    panel: ProfileFuselagePanel,
+    offset_x: float,
+    offset_y: float,
+    layer: str,
+):
+    """Add a profile fuselage panel to the DXF."""
+    pts = np.column_stack([panel.x + offset_x, panel.y + offset_y])
+    dxf.polyline(pts, closed=True, layer=layer)
+
+    # Wing spar pass-through slot
+    if panel.wing_slot:
+        sx0, sy0, sx1, sy1 = panel.wing_slot
+        slot_pts = np.array([
+            [sx0 + offset_x, sy0 + offset_y],
+            [sx1 + offset_x, sy0 + offset_y],
+            [sx1 + offset_x, sy1 + offset_y],
+            [sx0 + offset_x, sy1 + offset_y],
+        ])
+        dxf.polyline(slot_pts, closed=True, layer=layer + "_SLOTS")
+
+    # Lightening holes (ellipse approximated as polyline)
+    for hole in panel.lightening_holes:
+        t = np.linspace(0, 2 * np.pi, 32, endpoint=True)
+        hx = hole.cx + hole.rx * np.cos(t) + offset_x
+        hy = hole.cy + hole.ry * np.sin(t) + offset_y
+        h_pts = np.column_stack([hx, hy])
+        dxf.polyline(h_pts, closed=True, layer=layer + "_HOLES")
+
+    # Motor mount holes
+    for mx, my, mr in panel.motor_mount_holes:
+        dxf.circle(mx + offset_x, my + offset_y, mr, layer=layer + "_HOLES")
+
+    # Label
+    dxf.text(offset_x + 5, offset_y - float(np.min(panel.y)) - 8,
+             panel.label, height=3.0, layer=layer + "_LABEL")
 
 
 def export_parts_dxf(
@@ -96,7 +148,12 @@ def export_parts_dxf(
     dxf.add_layer("VTAIL_RIBS_LABEL", color=7)
     dxf.add_layer("FORMERS", color=2)          # yellow
     dxf.add_layer("FORMERS_HOLES", color=1)
+    dxf.add_layer("FORMERS_SLOTS", color=1)
     dxf.add_layer("FORMERS_LABEL", color=7)
+    dxf.add_layer("PROFILE_PANEL", color=6)    # magenta
+    dxf.add_layer("PROFILE_PANEL_SLOTS", color=1)
+    dxf.add_layer("PROFILE_PANEL_HOLES", color=1)
+    dxf.add_layer("PROFILE_PANEL_LABEL", color=7)
 
     cursor_x = 0.0
     cursor_y = 0.0
@@ -145,5 +202,19 @@ def export_parts_dxf(
         h = former.height_mm
         _add_former_to_dxf(dxf, former, cursor_x + w / 2, cursor_y, "FORMERS")
         cursor_x += w + spacing_mm
+
+    # Row 4: Profile fuselage panel (if present)
+    if parts.profile_panel is not None:
+        panel = parts.profile_panel
+        h = float(np.ptp(panel.y))
+        cursor_y -= h + spacing_mm * 2
+        cursor_x = 0.0
+        y_center = -float(np.min(panel.y))
+        _add_profile_panel_to_dxf(
+            dxf, panel,
+            cursor_x - float(np.min(panel.x)),
+            cursor_y + y_center,
+            "PROFILE_PANEL",
+        )
 
     dxf.save(output_path)

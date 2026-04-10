@@ -135,7 +135,13 @@ def size_wing(S: float, AR: float, taper_ratio: float = 1.0) -> tuple[float, flo
 
 @dataclass
 class ConventionalConcept:
-    """Conventional RC aircraft layout: main wing + horizontal tail + vertical tail + fuselage."""
+    """Conventional RC aircraft layout: main wing + horizontal tail + vertical tail + fuselage.
+
+    fuselage_type controls the cross-section style:
+      "round"   — traditional circular/elliptical fuselage (default)
+      "box"     — rectangular box fuselage with optional top/bottom spline decking
+      "profile" — flat profile fuselage (single sheet side outline)
+    """
 
     wing_main: Wing
     wing_horiz: Wing
@@ -143,6 +149,16 @@ class ConventionalConcept:
     fuselage_length: float = 1.5
     fuselage_radii: list[float] | None = None
     fuselage_stations: list[float] | None = None
+    fuselage_type: str = "round"  # "round" | "box" | "profile"
+    # Box fuselage dimensions (used when fuselage_type == "box")
+    fuselage_width: float | None = None   # constant width [m]
+    fuselage_height: float | None = None  # constant height [m]
+    fuselage_top_spline: list[tuple[float, float]] | None = None  # [(x_frac, z_offset), ...]
+    fuselage_bottom_spline: list[tuple[float, float]] | None = None
+    # Profile fuselage outline (used when fuselage_type == "profile")
+    fuselage_profile_x: list[float] | None = None  # x coords of side silhouette [m]
+    fuselage_profile_z: list[float] | None = None  # z coords of side silhouette [m]
+    fuselage_profile_thickness: float = 0.006  # sheet material thickness [m]
 
     def __post_init__(self):
         if self.fuselage_radii is None:
@@ -150,6 +166,12 @@ class ConventionalConcept:
         if self.fuselage_stations is None:
             n = len(self.fuselage_radii)
             self.fuselage_stations = [i / (n - 1) * self.fuselage_length for i in range(n)]
+        # Box fuselage defaults from radii if not specified
+        if self.fuselage_type == "box":
+            if self.fuselage_width is None:
+                self.fuselage_width = max(self.fuselage_radii) * 2.0 if self.fuselage_radii else 0.10
+            if self.fuselage_height is None:
+                self.fuselage_height = max(self.fuselage_radii) * 2.4 if self.fuselage_radii else 0.12
 
 
 def size_conventional(

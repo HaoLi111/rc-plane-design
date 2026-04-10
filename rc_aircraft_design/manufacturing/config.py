@@ -76,8 +76,15 @@ class WingBuildConfig:
 
 @dataclass
 class FuselageBuildConfig:
-    """Fuselage manufacturing configuration (former-and-longeron construction)."""
+    """Fuselage manufacturing configuration (former-and-longeron construction).
 
+    fuselage_type controls the cross-section and part generation style:
+      "round"   — traditional elliptical formers with longeron holes
+      "box"     — rectangular box formers with bar/longeron slots at edges
+      "profile" — flat profile fuselage cut from a single sheet
+    """
+
+    fuselage_type: str = "round"      # "round" | "box" | "profile"
     n_formers: int = 8                # number of cross-section formers
     longeron_count: int = 4           # number of longerons (stringers)
     material_thickness_mm: float = 3.0
@@ -87,6 +94,12 @@ class FuselageBuildConfig:
     battery_hatch_length_mm: float = 80.0
     wing_saddle_former: int = 2       # former index for wing saddle
     wing_saddle_width_mm: float = 0.0  # auto-computed from wing root chord
+
+    # ── Box fuselage specifics ─────────────────────────────────────
+    box_longeron_width_mm: float = 6.0   # square longeron cross-section
+    box_longeron_height_mm: float = 6.0
+    box_crossbar_width_mm: float = 4.0   # cross-bar (horizontal bracing)
+    box_crossbar_height_mm: float = 4.0
 
     # ── Stringer notches in formers ────────────────────────────────
     stringer_notch_width_mm: float = 3.0   # notch width for longerons

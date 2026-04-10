@@ -113,12 +113,13 @@ def _wing_surface_mesh(w, default_foil="2412", n_span=20, n_prof=40, mirror=True
 
 
 def _fuselage_mesh3d(concept, n_circ=16):
-    """Build Plotly Mesh3d data for a fuselage."""
+    """Build Plotly Mesh3d data for a fuselage (round, box, or profile)."""
+    fuse_type = concept.get("fuselage_type", "round")
+
     stations = concept.get("fuselage_stations")
     radii = concept.get("fuselage_radii")
     if not stations or not radii:
         fuse_len = concept.get("fuselage_length", 1.0)
-        # Synthetic stations: nose → max → taper → tail
         stations = [0, fuse_len * 0.1, fuse_len * 0.3, fuse_len * 0.7, fuse_len]
         r_max = fuse_len * 0.04
         radii = [0, r_max * 0.7, r_max, r_max * 0.8, 0.001]
@@ -126,15 +127,74 @@ def _fuselage_mesh3d(concept, n_circ=16):
     st = np.array(stations)
     ra = np.array(radii)
     ns = len(st)
-    t = np.linspace(0, 2 * np.pi, n_circ, endpoint=False)
-    cy, cz = np.cos(t), np.sin(t)
+
+    if fuse_type == "profile":
+        # Profile fuselage: flat slab — extrude the side silhouette with small thickness
+        profile_x = concept.get("fuselage_profile_x")
+        profile_z = concept.get("fuselage_profile_z")
+        thickness = concept.get("fuselage_profile_thickness", 0.006)
+
+        if profile_x and profile_z:
+            px = np.array(profile_x)
+            pz = np.array(profile_z)
+        else:
+            # Derive from radii
+            px = np.concatenate([st, st[::-1]])
+            pz = np.concatenate([ra, -ra[::-1]])
+
+        np_ = len(px)
+        half_t = thickness / 2
+
+        # Two copies of the profile (left/right faces)
+        verts_x = np.concatenate([px, px])
+        verts_y = np.concatenate([np.full(np_, -half_t), np.full(np_, half_t)])
+        verts_z = np.concatenate([pz, pz])
+
+        ii, jj, kk = [], [], []
+        # Left face
+        for i in range(np_ - 2):
+            ii.append(0); jj.append(i + 1); kk.append(i + 2)
+        # Right face
+        off = np_
+        for i in range(np_ - 2):
+            ii.append(off); jj.append(off + i + 2); kk.append(off + i + 1)
+        # Side strips connecting the two faces
+        for i in range(np_ - 1):
+            v00, v01 = i, i + 1
+            v10, v11 = i + np_, i + 1 + np_
+            ii += [v00, v01]; jj += [v10, v10]; kk += [v01, v11]
+
+        return verts_x, verts_y, verts_z, ii, jj, kk
+
+    # Box or round fuselage
+    if fuse_type == "box":
+        # Box cross-section
+        t = np.linspace(0, 2 * np.pi, n_circ, endpoint=False)
+        cos_t, sin_t = np.cos(t), np.sin(t)
+        max_cs = np.maximum(np.abs(cos_t), np.abs(sin_t))
+        cy = cos_t / max_cs
+        cz = sin_t / max_cs
+    else:
+        t = np.linspace(0, 2 * np.pi, n_circ, endpoint=False)
+        cy, cz = np.cos(t), np.sin(t)
+
+    fuse_width = concept.get("fuselage_width")
+    fuse_height = concept.get("fuselage_height")
+    max_r = float(np.max(ra)) if np.max(ra) > 0 else 1.0
 
     verts_x, verts_y, verts_z = [], [], []
     for i in range(ns):
+        if fuse_type == "box" and fuse_width and fuse_height:
+            scale = ra[i] / max_r if max_r > 0 else 1.0
+            ry = fuse_width / 2 * scale
+            rz = fuse_height / 2 * scale
+        else:
+            ry = ra[i]
+            rz = ra[i]
         for j in range(n_circ):
             verts_x.append(st[i])
-            verts_y.append(ra[i] * cy[j])
-            verts_z.append(ra[i] * cz[j])
+            verts_y.append(ry * cy[j])
+            verts_z.append(rz * cz[j])
 
     ii, jj, kk = [], [], []
     for i in range(ns - 1):
@@ -355,9 +415,36 @@ def _build_top_view(result, concept, wm, wh, wv):
     ))
 
     fuse_len = concept.get("fuselage_length", 1.0)
+    fuse_type = concept.get("fuselage_type", "round")
     stations = concept.get("fuselage_stations")
     radii = concept.get("fuselage_radii")
-    if stations and radii:
+
+    if fuse_type == "box":
+        fw = concept.get("fuselage_width", 0.10)
+        if stations and radii:
+            st, ra = np.array(stations), np.array(radii)
+            max_r = max(ra) if max(ra) > 0 else 1.0
+            half_w = fw / 2 * ra / max_r
+            fig_top.add_trace(go.Scatter(
+                x=np.concatenate([st, st[::-1]]),
+                y=np.concatenate([half_w, -half_w[::-1]]),
+                mode="lines", fill="toself",
+                fillcolor="rgba(148,163,184,0.15)",
+                line=dict(color=WING_COLORS["fuselage"], width=2),
+                name="Box Fuselage",
+            ))
+        else:
+            fig_top.add_shape(type="rect", x0=0, x1=fuse_len, y0=-fw/2, y1=fw/2,
+                              line=dict(color=WING_COLORS["fuselage"], width=2),
+                              fillcolor="rgba(148,163,184,0.12)")
+    elif fuse_type == "profile":
+        # Profile fuselage: just a thin line (flat sheet)
+        fig_top.add_trace(go.Scatter(
+            x=[0, fuse_len], y=[0, 0],
+            mode="lines", line=dict(color=WING_COLORS["fuselage"], width=3),
+            name="Profile Fuselage",
+        ))
+    elif stations and radii:
         st, ra = np.array(stations), np.array(radii)
         fig_top.add_trace(go.Scatter(
             x=np.concatenate([st, st[::-1]]),
@@ -407,9 +494,46 @@ def _build_top_view(result, concept, wm, wh, wv):
 def _build_side_view(result, concept, wm, wh, wv):
     """Build 2D side-view figure."""
     fig_side = go.Figure()
+    fuse_type = concept.get("fuselage_type", "round")
     stations = concept.get("fuselage_stations")
     radii = concept.get("fuselage_radii")
-    if stations and radii:
+
+    if fuse_type == "profile":
+        profile_x = concept.get("fuselage_profile_x")
+        profile_z = concept.get("fuselage_profile_z")
+        if profile_x and profile_z:
+            fig_side.add_trace(go.Scatter(
+                x=profile_x, y=profile_z,
+                mode="lines", fill="toself",
+                fillcolor="rgba(148,163,184,0.18)",
+                line=dict(color=WING_COLORS["fuselage"], width=2),
+                name="Profile Fuselage",
+            ))
+        elif stations and radii:
+            st, ra = np.array(stations), np.array(radii)
+            fig_side.add_trace(go.Scatter(
+                x=np.concatenate([st, st[::-1]]),
+                y=np.concatenate([ra, -ra[::-1]]),
+                mode="lines", fill="toself",
+                fillcolor="rgba(148,163,184,0.18)",
+                line=dict(color=WING_COLORS["fuselage"], width=2),
+                name="Profile Fuselage",
+            ))
+    elif fuse_type == "box":
+        fh = concept.get("fuselage_height", 0.12)
+        if stations and radii:
+            st, ra = np.array(stations), np.array(radii)
+            max_r = max(ra) if max(ra) > 0 else 1.0
+            half_h = fh / 2 * ra / max_r
+            fig_side.add_trace(go.Scatter(
+                x=np.concatenate([st, st[::-1]]),
+                y=np.concatenate([half_h, -half_h[::-1]]),
+                mode="lines", fill="toself",
+                fillcolor="rgba(148,163,184,0.15)",
+                line=dict(color=WING_COLORS["fuselage"], width=2),
+                name="Box Fuselage",
+            ))
+    elif stations and radii:
         st, ra = np.array(stations), np.array(radii)
         fig_side.add_trace(go.Scatter(
             x=np.concatenate([st, st[::-1]]),

@@ -49,6 +49,8 @@ def fuselage_mesh(
     radii: ArrayLike,
     n_circumference: int = 24,
     shape: str = "circle",
+    width: float | None = None,
+    height: float | None = None,
 ) -> Mesh:
     """Generate a fuselage mesh from station-radius profile.
 
@@ -57,17 +59,17 @@ def fuselage_mesh(
     stations : x-positions along the fuselage [m]
     radii : radius at each station [m]
     n_circumference : number of points around the cross-section
-    shape : "circle" or "square"
+    shape : "circle", "square", or "box"
+    width, height : explicit cross-section dimensions for box fuselage [m]
     """
     stations = np.asarray(stations, dtype=np.float32)
     radii = np.asarray(radii, dtype=np.float32)
     ns = len(stations)
     nc = n_circumference
 
-    if shape == "square":
-        # Square cross-section: 4 sides with subdivisions
+    if shape in ("square", "box"):
+        # Box/square cross-section: 4 sides with subdivisions
         t = np.linspace(0, 2 * np.pi, nc, endpoint=False)
-        # Map to square
         cos_t = np.cos(t)
         sin_t = np.sin(t)
         max_cs = np.maximum(np.abs(cos_t), np.abs(sin_t))
@@ -81,9 +83,18 @@ def fuselage_mesh(
 
     # Build vertices
     verts = []
+    max_r = float(np.max(radii)) if np.max(radii) > 0 else 1.0
     for i in range(ns):
+        if shape == "box" and width is not None and height is not None:
+            # Box fuselage: scale the constant width/height by radius ratio
+            scale = radii[i] / max_r if max_r > 0 else 1.0
+            ry = width / 2 * scale
+            rz = height / 2 * scale
+        else:
+            ry = radii[i]
+            rz = radii[i]
         for j in range(nc):
-            verts.append([stations[i], radii[i] * cy[j], radii[i] * cz[j]])
+            verts.append([stations[i], ry * cy[j], rz * cz[j]])
     vertices = np.array(verts, dtype=np.float32)
 
     # Build triangle indices (quad strips between stations)

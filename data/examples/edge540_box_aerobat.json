@@ -1,0 +1,76 @@
+{
+    "name": "Edge 540 Box Aerobat",
+    "description": "3D aerobatic plane with rectangular box fuselage, typical of many ARTF balsa kits. Longerons at corners, ply formers, with top/bottom turtle-deck spline fairing.",
+    "citation": "Representative of 48-inch class 3D/IMAC aerobatic planes (Edge 540, Yak 54, Sukhoi). Box fuselage with balsa sheeted top/bottom decking.",
+    "airfoil": {
+        "code": "0015",
+        "Cla": 0.11,
+        "alpha0_deg": 0.0,
+        "Cd0": 0.020,
+        "Cdi_factor": 0.033
+    },
+    "wing_main": {
+        "chord_root": 0.26,
+        "chord_tip": 0.26,
+        "span": 1.22,
+        "sweep_deg": 0.0,
+        "dihedral_deg": 0.0,
+        "foil": "0015",
+        "type_": 0,
+        "x": 0.18
+    },
+    "wing_horiz": {
+        "chord_root": 0.15,
+        "chord_tip": 0.12,
+        "span": 0.48,
+        "sweep_deg": 0.0,
+        "dihedral_deg": 0.0,
+        "foil": "0012",
+        "type_": 0,
+        "x": 0.78
+    },
+    "wing_vert": {
+        "chord_root": 0.17,
+        "chord_tip": 0.09,
+        "span": 0.20,
+        "sweep_deg": 28.0,
+        "dihedral_deg": 0.0,
+        "foil": "0009",
+        "type_": 2,
+        "x": 0.76
+    },
+    "fuselage": {
+        "type": "box",
+        "length": 0.95,
+        "width": 0.09,
+        "height": 0.11,
+        "stations": [0.0, 0.06, 0.12, 0.45, 0.70, 0.95],
+        "radii":   [0.02, 0.045, 0.05, 0.05, 0.035, 0.005],
+        "top_spline": [[0.0, 0.01], [0.12, 0.025], [0.45, 0.02], [0.95, 0.005]],
+        "bottom_spline": [[0.0, -0.005], [0.12, -0.015], [0.45, -0.01], [0.95, -0.003]]
+    },
+    "weight": {
+        "m_payload_kg": 0.12,
+        "f_payload": 0.18,
+        "v_cruise_ms": 20.0,
+        "endurance_s": 420
+    },
+    "power": {
+        "motor_power_W": 400,
+        "motor_efficiency": 0.83,
+        "prop_efficiency": 0.58,
+        "battery_voltage": 14.8,
+        "battery_capacity_Ah": 1.5,
+        "prop_RPM": 13000
+    },
+    "constraints": {
+        "turn_v": 18.0,
+        "turn_bank_deg": 70,
+        "climb_vv": 12.0,
+        "climb_v": 16.0,
+        "cruise_v": 20.0,
+        "ceiling_h": 600.0,
+        "to_Sg": 12.0
+    },
+    "cg_x": 0.30
+}

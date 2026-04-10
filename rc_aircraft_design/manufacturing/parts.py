@@ -90,7 +90,27 @@ class FormerProfile:
     # (x0, y0, x1, y1) rectangular notches at edge for stringers
     tab_slots: list[tuple[float, float, float, float]] = field(default_factory=list)
     # (x0, y0, x1, y1) tab slots for fuselage side panel interlocking
+    bar_slots: list[SlotRect] = field(default_factory=list)
+    # rectangular slots for longerons/cross-bars (box fuselage)
+    former_type: str = "round"  # "round" | "box" | "profile"
     label: str = ""
+
+
+@dataclass
+class ProfileFuselagePanel:
+    """Flat profile fuselage side panel — the entire fuselage is cut from one sheet.
+
+    Used for profile (silhouette) planes where the fuselage is a single flat
+    sheet of ply/depron/foam-board with the outline cut to a side silhouette.
+    """
+
+    x: np.ndarray            # outline x coords [mm]
+    y: np.ndarray            # outline y coords [mm]
+    wing_slot: tuple[float, float, float, float] | None = None  # (x0, y0, x1, y1) wing spar pass-through
+    tail_slot: tuple[float, float, float, float] | None = None  # tail boom slot
+    motor_mount_holes: list[tuple[float, float, float]] = field(default_factory=list)
+    lightening_holes: list[LighteningHole] = field(default_factory=list)
+    label: str = "PROFILE"
 
 
 @dataclass
@@ -137,6 +157,7 @@ class ManufacturingParts:
     vtail_ribs: list[RibProfile]
     fuselage_formers: list[FormerProfile]
     fuselage_sides: list[FuselageSidePanel] = field(default_factory=list)
+    profile_panel: ProfileFuselagePanel | None = None  # for profile fuselage type
     firewall: Firewall | None = None
     doublers: list[Doubler] = field(default_factory=list)
     name: str = ""
@@ -454,6 +475,63 @@ def generate_wing_ribs(
 # Fuselage former generation
 # ---------------------------------------------------------------------------
 
+def _box_former_outline(width_mm: float, height_mm: float) -> tuple[np.ndarray, np.ndarray]:
+    """Generate a simple rectangular cross-section outline."""
+    hw, hh = width_mm / 2, height_mm / 2
+    x = np.array([-hw, hw, hw, -hw, -hw])
+    y = np.array([-hh, -hh, hh, hh, -hh])
+    return x, y
+
+
+def _box_bar_slots(
+    width_mm: float,
+    height_mm: float,
+    build: FuselageBuildConfig,
+) -> list[SlotRect]:
+    """Compute longeron and cross-bar slots for a box former.
+
+    Places 4 longeron slots at the corners and optional top/bottom cross-bar
+    slots centred horizontally.
+    """
+    hw, hh = width_mm / 2, height_mm / 2
+    lw = build.box_longeron_width_mm
+    lh = build.box_longeron_height_mm
+    mat = build.material_thickness_mm
+
+    slots: list[SlotRect] = []
+
+    # 4 corner longeron slots (inset from edges by material_thickness)
+    corners = [
+        ( hw - mat - lw,  hh - mat - lh, "top-right"),
+        (-hw + mat,        hh - mat - lh, "top-left"),
+        (-hw + mat,       -hh + mat,      "bottom-left"),
+        ( hw - mat - lw,  -hh + mat,      "bottom-right"),
+    ]
+    for cx, cy, name in corners[:build.longeron_count]:
+        slots.append(SlotRect(
+            x0=cx, y0=cy,
+            x1=cx + lw, y1=cy + lh,
+            name=f"longeron_{name}", surface="center",
+        ))
+
+    # Top cross-bar slot (centred at top edge, notched into former)
+    cbw = build.box_crossbar_width_mm
+    cbh = build.box_crossbar_height_mm
+    slots.append(SlotRect(
+        x0=-cbw / 2, y0=hh - cbh,
+        x1=cbw / 2, y1=hh,
+        name="crossbar_top", surface="upper",
+    ))
+    # Bottom cross-bar slot
+    slots.append(SlotRect(
+        x0=-cbw / 2, y0=-hh,
+        x1=cbw / 2, y1=-hh + cbh,
+        name="crossbar_bottom", surface="lower",
+    ))
+
+    return slots
+
+
 def generate_fuselage_formers(
     concept: ConventionalConcept,
     build: FuselageBuildConfig,
@@ -466,6 +544,7 @@ def generate_fuselage_formers(
     if not stations or not radii:
         return []
 
+    fuse_type = getattr(concept, "fuselage_type", "round")
     formers = []
     n = build.n_formers
 
@@ -479,38 +558,125 @@ def generate_fuselage_formers(
         r_mm = r * 1000.0
 
         if r_mm < 1.0:
-            # Degenerate station (nose tip or tail tip)
             r_mm = max(r_mm, 2.0)
 
-        # Rounded-rectangle cross-section (typical RC fuselage)
-        width_mm = r_mm * 2.0
-        height_mm = r_mm * 2.0 * 1.2  # slightly taller than wide
+        if fuse_type == "box":
+            # Box fuselage: constant rectangular cross-section (with slight
+            # taper toward nose/tail based on radius ratio)
+            max_r = max(float(np.max(radii)) * 1000.0, 1.0)
+            scale = r_mm / max_r
+            width_mm = (concept.fuselage_width or 0.10) * 1000.0 * scale
+            height_mm = (concept.fuselage_height or 0.12) * 1000.0 * scale
+            width_mm = max(width_mm, 10.0)
+            height_mm = max(height_mm, 10.0)
 
-        # Generate outline (rounded rectangle approximation)
-        t = np.linspace(0, 2 * np.pi, 64, endpoint=True)
-        x_outline = width_mm / 2 * np.cos(t)
-        y_outline = height_mm / 2 * np.sin(t)
+            x_outline, y_outline = _box_former_outline(width_mm, height_mm)
+            bar_slots = _box_bar_slots(width_mm, height_mm, build)
+            lh = [(s.x0 + s.x1) / 2 for s in bar_slots], [(s.y0 + s.y1) / 2 for s in bar_slots]
+            longeron_holes = list(zip(lh[0], lh[1]))
 
-        # Longeron hole positions (4 corners)
-        lh = []
-        for angle in [45, 135, 225, 315]:
-            rad = np.radians(angle)
-            lx = (width_mm / 2 - build.material_thickness_mm) * np.cos(rad)
-            ly = (height_mm / 2 - build.material_thickness_mm) * np.sin(rad)
-            lh.append((lx, ly))
+            formers.append(FormerProfile(
+                index=i,
+                station_mm=station_mm,
+                width_mm=width_mm,
+                height_mm=height_mm,
+                x=x_outline,
+                y=y_outline,
+                longeron_holes=longeron_holes[:build.longeron_count],
+                bar_slots=bar_slots,
+                former_type="box",
+                label=f"BF{i}",
+            ))
+        else:
+            # Round (default) — rounded-rectangle cross-section
+            width_mm = r_mm * 2.0
+            height_mm = r_mm * 2.0 * 1.2
 
-        formers.append(FormerProfile(
-            index=i,
-            station_mm=station_mm,
-            width_mm=width_mm,
-            height_mm=height_mm,
-            x=x_outline,
-            y=y_outline,
-            longeron_holes=lh[:build.longeron_count],
-            label=f"F{i}",
-        ))
+            t = np.linspace(0, 2 * np.pi, 64, endpoint=True)
+            x_outline = width_mm / 2 * np.cos(t)
+            y_outline = height_mm / 2 * np.sin(t)
+
+            lh = []
+            for angle in [45, 135, 225, 315]:
+                rad = np.radians(angle)
+                lx = (width_mm / 2 - build.material_thickness_mm) * np.cos(rad)
+                ly = (height_mm / 2 - build.material_thickness_mm) * np.sin(rad)
+                lh.append((lx, ly))
+
+            formers.append(FormerProfile(
+                index=i,
+                station_mm=station_mm,
+                width_mm=width_mm,
+                height_mm=height_mm,
+                x=x_outline,
+                y=y_outline,
+                longeron_holes=lh[:build.longeron_count],
+                former_type="round",
+                label=f"F{i}",
+            ))
 
     return formers
+
+
+# ---------------------------------------------------------------------------
+# Profile fuselage panel generation
+# ---------------------------------------------------------------------------
+
+def generate_profile_panel(
+    concept: ConventionalConcept,
+    build: FuselageBuildConfig,
+) -> ProfileFuselagePanel:
+    """Generate a flat profile fuselage side panel.
+
+    For profile (silhouette) planes the fuselage is a single sheet cut to
+    the side outline.  Includes wing spar pass-through slot and lightening
+    holes in the tail boom area.
+    """
+    fuse_l_mm = concept.fuselage_length * 1000.0
+    stations = concept.fuselage_stations or []
+    radii = concept.fuselage_radii or []
+
+    # Use the profile outline if explicitly provided; otherwise derive from
+    # the station/radii arrays (side view = top-of-fuselage to bottom).
+    if concept.fuselage_profile_x is not None and concept.fuselage_profile_z is not None:
+        px = np.array(concept.fuselage_profile_x) * 1000.0
+        pz = np.array(concept.fuselage_profile_z) * 1000.0
+        # Close the loop
+        if px[0] != px[-1] or pz[0] != pz[-1]:
+            px = np.append(px, px[0])
+            pz = np.append(pz, pz[0])
+    else:
+        # Derive from stations/radii: upper = +r, lower = -r
+        st = np.array(stations) * 1000.0
+        ra = np.array(radii) * 1000.0
+        px = np.concatenate([st, st[::-1], [st[0]]])
+        pz = np.concatenate([ra, -ra[::-1], [ra[0]]])
+
+    # Wing spar pass-through slot
+    wing_x_mm = concept.wing_main.x * 1000.0
+    spar_w = build.box_longeron_width_mm if build.fuselage_type == "box" else 6.0
+    wing_slot = (
+        wing_x_mm - spar_w / 2, -5.0,
+        wing_x_mm + spar_w / 2, 5.0,
+    )
+
+    # Lightening holes in the tail boom region (60-85% of fuselage length)
+    l_holes: list[LighteningHole] = []
+    for frac in [0.65, 0.75]:
+        cx = frac * fuse_l_mm
+        upper_z = float(np.interp(cx, px[:len(px)//2], pz[:len(pz)//2])) if len(px) > 4 else 15.0
+        lower_z = -upper_z
+        ry = max((upper_z - lower_z) * 0.3, 3.0)
+        rx = fuse_l_mm * 0.04
+        if rx > 5.0 and ry > 3.0:
+            l_holes.append(LighteningHole(cx=cx, cy=0.0, rx=rx, ry=ry))
+
+    return ProfileFuselagePanel(
+        x=px, y=pz,
+        wing_slot=wing_slot,
+        lightening_holes=l_holes,
+        label="PROFILE",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -525,12 +691,23 @@ def generate_all_parts(
     wing_ribs = generate_wing_ribs(concept.wing_main, config.wing, prefix="W")
     htail_ribs = generate_wing_ribs(concept.wing_horiz, config.htail, prefix="H")
     vtail_ribs = generate_wing_ribs(concept.wing_vert, config.vtail, prefix="V")
-    fuselage_formers = generate_fuselage_formers(concept, config.fuselage)
+
+    fuse_type = getattr(concept, "fuselage_type", "round")
+    profile_panel = None
+
+    if fuse_type == "profile":
+        # Profile plane: no formers, just the flat side panel
+        fuselage_formers = []
+        profile_panel = generate_profile_panel(concept, config.fuselage)
+    else:
+        # Round or box formers
+        fuselage_formers = generate_fuselage_formers(concept, config.fuselage)
 
     return ManufacturingParts(
         wing_ribs=wing_ribs,
         htail_ribs=htail_ribs,
         vtail_ribs=vtail_ribs,
         fuselage_formers=fuselage_formers,
+        profile_panel=profile_panel,
         name=config.name,
     )
